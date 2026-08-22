@@ -2,7 +2,6 @@ use crate::authz::admin::{AbsoluteRepo, Perm, PermRepo};
 use crate::authz::models::Permission;
 use crate::authz::models::{PermissionReq, perm2permission, permission2perm};
 use sqlx::{Error as SqlxError, Pool, Postgres, query_as};
-use std::collections::HashMap;
 use std::sync::Arc;
 use uuid::Uuid;
 use viewset::Repository;
@@ -57,10 +56,10 @@ impl Service {
     async fn get_permission(&self, name: String) -> Result<Option<Permission>, SqlxError> {
         let perm = match self
             .perm_repo
-            .list(&HashMap::from([("name", name)]).into())
+            .retrieve(&name)
             .await
         {
-            Ok((list, _)) => list[0].clone(),
+            Ok(list ) => list,
             Err(_) => return Ok(None),
         };
         Ok(Some(perm2permission(perm)))
