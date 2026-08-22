@@ -92,7 +92,7 @@ async fn confirm(
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
-    let role = match authz.get_absolute_role(&user_id).await{
+    let role = match authz.get_absolute_role(&user_id).await {
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
@@ -111,7 +111,7 @@ async fn confirm_token(
     token: web::Json<Token>,
     svc: web::Data<UserService>,
     sess: web::Data<SessionService>,
-authz: web::Data<AuthzService>,
+    authz: web::Data<AuthzService>,
 ) -> impl Responder {
     let token = token.into_inner();
     let user_id = match data.passwdless_service.confirm_token(token.token).await {
@@ -123,8 +123,8 @@ authz: web::Data<AuthzService>,
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
-    
-    let role = match authz.get_absolute_role(&user_id).await{
+
+    let role = match authz.get_absolute_role(&user_id).await {
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };

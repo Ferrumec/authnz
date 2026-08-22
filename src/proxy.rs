@@ -1,13 +1,16 @@
+use crate::models::User;
 use actix_web::{Error, HttpRequest, HttpResponse, http::header, web};
+use actixutils::Session;
 use awc::Client;
-
 const UPSTREAM: &str = "http://127.0.0.1:8081";
 
 pub async fn proxy(
     client: web::Data<Client>,
     req: HttpRequest,
     body: web::Bytes,
+    session: Session<User>,
 ) -> Result<HttpResponse, Error> {
+    let user = session.read().await;
     let uri = req
         .uri()
         .path_and_query()
@@ -25,6 +28,9 @@ pub async fn proxy(
     }
 
     let mut upstream_res = upstream_req
+        .insert_header(("X-User-Id", user.sub.to_string()))
+        .insert_header(("X-User-Email", user.email.clone()))
+        .insert_header(("X-User-Name", user.username.clone()))
         .send_body(body)
         .await
         .map_err(|e| actix_web::error::ErrorBadGateway(format!("Upstream request failed: {e}")))?;

@@ -1,6 +1,4 @@
 use crate::authn::domain::SessionService;
-use crate::authz::Service as AuthzService;
-use crate::models::User;
 use crate::authn::domain::user::{
     UserService,
     errors::AuthError,
@@ -9,9 +7,11 @@ use crate::authn::domain::user::{
     },
 };
 use crate::authn::models::{
-    ApiResponse, ChangePasswordRequest, LoginRequest,
-    PasswordResetConfirmRequest, PasswordResetRequest, RegisterRequest,
+    ApiResponse, ChangePasswordRequest, LoginRequest, PasswordResetConfirmRequest,
+    PasswordResetRequest, RegisterRequest,
 };
+use crate::authz::Service as AuthzService;
+use crate::models::User;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{HttpRequest, HttpResponse, Responder, web};
 use actixutils::{Identity, Session};
@@ -71,7 +71,7 @@ pub async fn login(
     svc: web::Data<UserService>,
     sess: web::Data<SessionService>,
     req: web::Json<LoginRequest>,
-authz: web::Data<AuthzService>,
+    authz: web::Data<AuthzService>,
 ) -> impl Responder {
     let cmd = PasswordLoginCmd {
         username: req.identifier.clone(),
@@ -82,8 +82,8 @@ authz: web::Data<AuthzService>,
         Ok(user) => user,
         Err(e) => return auth_error_to_response(e),
     };
-    
-    let role = match authz.get_absolute_role(&user.id).await{
+
+    let role = match authz.get_absolute_role(&user.id).await {
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
@@ -101,7 +101,7 @@ pub async fn username_login(
     svc: web::Data<UserService>,
     req: web::Json<LoginRequest>,
     sess: web::Data<SessionService>,
-authz: web::Data<AuthzService>,
+    authz: web::Data<AuthzService>,
 ) -> impl Responder {
     let cmd = PasswordLoginCmd {
         username: req.identifier.clone(),
@@ -112,8 +112,8 @@ authz: web::Data<AuthzService>,
         Ok(user) => user,
         Err(e) => return auth_error_to_response(e),
     };
-    
-    let role = match authz.get_absolute_role(&user.id).await{
+
+    let role = match authz.get_absolute_role(&user.id).await {
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
