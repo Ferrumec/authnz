@@ -1,0 +1,32 @@
+[package]
+name = "authnz"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+actix-web = "4.4"
+serde = { version = "1", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+bcrypt = "0.15"
+sqlx = { version = "0.9", features = ["postgres", "runtime-tokio","tls-native-tls", "chrono", "migrate", "uuid"] }
+thiserror = "1.0"
+uuid = { version = "1.7", features = ["v4", "serde"] }
+rand = "0.8"
+base64 = "0.22.1"
+serde_json = "1.0.145"
+sha2 = "0.10.9"
+futures = "0.3.31"
+moka = { version = "0.12.13", features = ["future"] }
+actixutils = { version = "0.6.3", features = ["jwt"]}
+typed-eventbus = "0.2.1"
+webauthn-rs = {version="0.5.4", optional=true}
+tracing = "0.1.44"
+anyhow = "1.0.102"
+async-trait = "0.1.89"
+rust_decimal = "1.42.1"
+viewset = "0.2"
+awc = "3.8.2"
+
+[features]
+passkey = ["webauthn-rs"]
+

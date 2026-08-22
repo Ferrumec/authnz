@@ -1,0 +1,120 @@
+use crate::authn::admin::create_viewset;
+use crate::authn::domain::user::ActiveUser;
+#[cfg(feature = "passkey")]
+use crate::authn::passkey;
+use crate::authn::{auth2::AppState, handlers, passwdless::config, user_id::username2userid};
+use actix_web::web::{self, Data, ServiceConfig};
+use actixutils::Store;
+use actixutils::middleware::SessionMiddleware;
+use actixutils::{Identity, Sign, Validate};
+use sqlx::{Error, Pool, Postgres};
+use std::{env::VarError, sync::Arc};
+use typed_eventbus::EventStream;
+use uuid::Uuid;
+use viewset::ViewSet;
+
+#[derive(Clone)]
+pub struct AuthModule {
+    state: web::Data<AppState>,
+}
+
+#[derive(Debug)]
+pub enum SetupError {
+    Db(Error),
+    Var(VarError),
+}
+
+impl ToString for SetupError {
+    fn to_string(&self) -> String {
+        match self {
+            SetupError::Db(error) => error.to_string(),
+            SetupError::Var(var_error) => var_error.to_string(),
+        }
+    }
+}
+
+impl From<VarError> for SetupError {
+    fn from(value: VarError) -> Self {
+        SetupError::Var(value)
+    }
+}
+
+impl From<Error> for SetupError {
+    fn from(value: Error) -> Self {
+        SetupError::Db(value)
+    }
+}
+
+impl Validate<Identity> for AppState {
+    fn validate(&self, token: &str) -> anyhow::Result<Identity> {
+        self.validator.validate(token)
+    }
+}
+
+impl AuthModule {
+    pub async fn new(
+        pool: Pool<Postgres>,
+        signer: Arc<dyn Sign<Identity>>,
+        validator: Arc<dyn Validate<Identity>>,
+        es: Arc<dyn EventStream>,
+        session_store: Arc<dyn Store<Uuid, ActiveUser>>,
+    ) -> Self {
+        let app_state = AppState::new(pool.clone(), signer, validator, es, session_store).await;
+        Self {
+            state: web::Data::new(app_state),
+        }
+    }
+    pub fn config(&self, cfg: &mut ServiceConfig, namespace: &str) {
+        let session_middleware: SessionMiddleware<ActiveUser> =
+            SessionMiddleware::required(self.state.session_store.clone());
+        let scope =
+            web::scope(namespace)
+                // `username2userid` and the `/passwordless` handlers extract
+                // `web::Data<AppState>` directly, so the shared state needs to
+                // be registered here too, not just the `AuthService` slice of it.
+                .app_data(self.state.clone())
+                .app_data(Data::new(self.state.auth_service.clone()))
+                .app_data(Data::new(self.state.session_service.clone()))
+                .service(username2userid)
+                .service(web::scope("/admin").configure(|cfg| {
+                    create_viewset(self.state.pool.clone()).configure(cfg, "users")
+                }))
+                .service(
+                    web::scope("/auth")
+                        .route("/register", web::post().to(handlers::register))
+                        .route("/login/email", web::post().to(handlers::login))
+                        .route("/login/username", web::post().to(handlers::username_login))
+                        .route("/refresh", web::post().to(handlers::refresh))
+                        .route("/logout", web::post().to(handlers::logout))
+                        .route(
+                            "/request_password_reset",
+                            web::post().to(handlers::request_password_reset),
+                        )
+                        .route(
+                            "/confirm_password_reset",
+                            web::post().to(handlers::confirm_password_reset),
+                        ),
+                )
+                // 🔐 PROTECTED ROUTES
+                .service(
+                    web::scope("/me")
+                        .wrap(session_middleware)
+                        .route("/account", web::get().to(handlers::protected))
+                        .route(
+                            "/change_password",
+                            web::post().to(handlers::change_password),
+                        ),
+                )
+                .service(web::scope("/passwordless").configure(config));
+
+        #[cfg(feature = "passkey")]
+        {
+            // 🔐 register/list/remove are protected by the Auth<Identity>
+            // extractor inside the handlers themselves; login/start and
+            // login/finish are intentionally public (no session yet).
+            scope = scope.service(passkey::routes("/passkey"));
+        }
+
+        cfg.service(scope);
+    }
+}
