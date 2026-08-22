@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use std::sync::Arc;
 use uuid::Uuid;
+use chrono::{DateTime, Utc};
 use viewset::{ApiError, DefaultRepo, DefaultViewSet, Entity, Repository, Service};
 
 #[derive(Entity, FromRow, Serialize, Clone)]
@@ -17,11 +18,13 @@ pub struct User {
     #[entity(pk)]
     pub id: Uuid,
     #[entity(searchable, sortable, filterable)]
-    username: String,
+    pub username: String,
     #[entity(sortable, filterable)]
-    email: String,
+    pub email: String,
     #[entity(sortable)]
-    created_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub password_hash: String,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize)]

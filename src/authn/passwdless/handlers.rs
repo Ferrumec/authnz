@@ -1,12 +1,15 @@
+use crate::authn::domain::SessionService;
+use crate::authn::domain::user::UserService;
+use crate::authn::handlers::session_cookie;
+use crate::authn::{auth2::AppState, passwdless::PasswdlessError};
+use crate::authz::Service as AuthzService;
+use crate::models::User;
 use actix_web::{
     HttpResponse, Responder, ResponseError, get, post,
     web::{self, ServiceConfig},
 };
-
 use serde::Deserialize;
 use std::fmt::Display;
-
-use crate::authn::{auth2::AppState, models::LoginResponse, passwdless::PasswdlessError};
 
 fn translate_error(error: PasswdlessError) -> HttpResponse {
     match error {
@@ -48,10 +51,7 @@ struct Email {
 }
 
 #[get("/challenge/email")]
-async fn challenge1(
-    data: web::Data<AppState>,
-    email: web::Json<Email>,
-) -> impl Responder {
+async fn challenge1(data: web::Data<AppState>, email: web::Json<Email>) -> impl Responder {
     match data
         .passwdless_service
         .challenge_by_email(&email.email)
@@ -63,10 +63,7 @@ async fn challenge1(
 }
 
 #[get("/challenge/username/{username}")]
-async fn challenge2(
-    data: web::Data<AppState>,
-    username: web::Path<String>,
-) -> impl Responder {
+async fn challenge2(data: web::Data<AppState>, username: web::Path<String>) -> impl Responder {
     match data
         .passwdless_service
         .challenge_by_username(&username.into_inner())
@@ -75,51 +72,70 @@ async fn challenge2(
         Ok(_r) => HttpResponse::Created().finish(),
         Err(e) => translate_error(e),
     }
-    
 }
 
 #[get("/confirm_link/{link}")]
-async fn confirm(data: web::Data<AppState>, token: web::Path<String>) -> impl Responder {
+async fn confirm(
+    data: web::Data<AppState>,
+    token: web::Path<String>,
+    svc: web::Data<UserService>,
+    sess: web::Data<SessionService>,
+    authz: web::Data<AuthzService>,
+) -> impl Responder {
     let token = token.into_inner();
     let user_id = match data.passwdless_service.confirm_link(token).await {
         Ok(r) => r,
         Err(e) => return translate_error(e),
     };
 
-    // Issue tokens for passwordless authentication
-    match data.auth_service.issue_for_passwordless(user_id).await {
-        Ok(auth_result) => HttpResponse::Ok().json(LoginResponse {
-            access_token: auth_result.access_token,
-            refresh_token: auth_result.refresh_token,
-            expires_in: auth_result.expires_in,
-        }),
-        Err(e) => {
-            tracing::warn!("Error creating token pair: {}", e);
-            HttpResponse::InternalServerError().finish()
-        }
-    }
+    let user = match svc.get_user_by_id(&user_id).await {
+        Ok(u) => u,
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+    let role = match authz.get_absolute_role(&user_id).await{
+        Ok(u) => u,
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+    let user = User::new(user, role);
+    let sess_id = match sess.issue_session(user).await {
+        Ok(sess_id) => sess_id,
+        Err(_e) => return HttpResponse::InternalServerError().finish(),
+    };
+
+    HttpResponse::Ok().cookie(session_cookie(&sess_id)).finish()
 }
 
 #[post("/confirm_token")]
-async fn confirm_token(data: web::Data<AppState>, token: web::Json<Token>) -> impl Responder {
+async fn confirm_token(
+    data: web::Data<AppState>,
+    token: web::Json<Token>,
+    svc: web::Data<UserService>,
+    sess: web::Data<SessionService>,
+authz: web::Data<AuthzService>,
+) -> impl Responder {
     let token = token.into_inner();
     let user_id = match data.passwdless_service.confirm_token(token.token).await {
         Ok(r) => r,
         Err(e) => return translate_error(e),
     };
 
-    // Issue tokens for passwordless authentication
-    match data.auth_service.issue_for_passwordless(user_id).await {
-        Ok(auth_result) => HttpResponse::Ok().json(LoginResponse {
-            access_token: auth_result.access_token,
-            refresh_token: auth_result.refresh_token,
-            expires_in: auth_result.expires_in,
-        }),
-        Err(e) => {
-            tracing::warn!("Error creating token pair: {}", e);
-            HttpResponse::InternalServerError().finish()
-        }
-    }
+    let user = match svc.get_user_by_id(&user_id).await {
+        Ok(u) => u,
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+    
+    let role = match authz.get_absolute_role(&user_id).await{
+        Ok(u) => u,
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+    let user = User::new(user, role);
+
+    let sess_id = match sess.issue_session(user).await {
+        Ok(sess_id) => sess_id,
+        Err(_e) => return HttpResponse::InternalServerError().finish(),
+    };
+
+    HttpResponse::Ok().cookie(session_cookie(&sess_id)).finish()
 }
 
 pub fn config(cfg: &mut ServiceConfig) {

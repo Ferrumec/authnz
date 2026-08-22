@@ -12,7 +12,8 @@
 //! Sessions use sliding expiration: every successful `validate` call
 //! extends the TTL.
 
-use crate::authn::domain::user::{ActiveUser as User, errors::AuthError};
+use crate::authn::domain::user::errors::AuthError;
+use crate::models::User;
 use actixutils::locals::Store;
 use std::sync::Arc;
 use uuid::Uuid;

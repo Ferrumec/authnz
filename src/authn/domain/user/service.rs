@@ -8,18 +8,19 @@ use crate::authn::domain::user::token::{generate_raw_token, hash_token};
 use crate::authn::domain::user::{
     errors::AuthError,
     models::{
-        ActiveUser, ChangePasswordCmd, ConfirmPasswordResetCmd, PasswordLoginCmd, PasswordReset,
-        RequestPasswordResetCmd, User,
+        ChangePasswordCmd, ConfirmPasswordResetCmd, PasswordLoginCmd, PasswordReset,
+        RequestPasswordResetCmd,
     },
 };
+
+use crate::authn::admin::{User, UserRepository};
 use chrono::Utc;
 use serde::Serialize;
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
-use typed_eventbus::EventStream;
-use typed_eventbus::{Event, Publishable};
+use typed_eventbus::Publishable;
 use uuid::Uuid;
-
+use viewset::Repository;
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const MIN_PASSWORD_LEN: usize = 6;
@@ -43,18 +44,21 @@ impl Publishable for UserCreated {
 #[derive(Clone)]
 pub struct UserService {
     pool: Pool<Postgres>,
-    pub es: Arc<dyn EventStream>,
+    repo: Arc<UserRepository>,
 }
 
 impl UserService {
-    pub fn new(pool: Pool<Postgres>, es: Arc<dyn EventStream>) -> Self {
-        Self { pool, es }
+    pub fn new(pool: Pool<Postgres>) -> Self {
+        Self {
+            pool: pool.clone(),
+            repo: Arc::new(pool.into()),
+        }
     }
 
     // ── Password login ────────────────────────────────────────────────────────
 
     /// Validate credentials and issue a token pair.
-    pub async fn password_login(&self, cmd: PasswordLoginCmd) -> Result<ActiveUser, AuthError> {
+    pub async fn password_login(&self, cmd: PasswordLoginCmd) -> Result<User, AuthError> {
         if cmd.username.is_empty() || cmd.password.is_empty() {
             return Err(AuthError::MissingCredentials);
         }
@@ -66,10 +70,10 @@ impl UserService {
             Ok(false) => return Err(AuthError::InvalidCredentials),
             Err(e) => return Err(AuthError::Bcrypt(e)),
         }
-        Ok(user.into())
+        Ok(user)
     }
 
-    pub async fn username_login(&self, cmd: PasswordLoginCmd) -> Result<ActiveUser, AuthError> {
+    pub async fn username_login(&self, cmd: PasswordLoginCmd) -> Result<User, AuthError> {
         if cmd.username.is_empty() || cmd.password.is_empty() {
             return Err(AuthError::MissingCredentials);
         }
@@ -81,7 +85,7 @@ impl UserService {
             Ok(false) => return Err(AuthError::InvalidCredentials),
             Err(e) => return Err(AuthError::Bcrypt(e)),
         }
-        Ok(user.into())
+        Ok(user)
     }
 
     // ── Registration ──────────────────────────────────────────────────────────
@@ -98,18 +102,8 @@ impl UserService {
         }
 
         let hash = bcrypt::hash(password, 10)?;
-        let user = self.create_user(username, &hash).await?;
+        let _user = self.create_user(username, &hash).await?;
 
-        let event = UserCreated {
-            email: username.to_string(),
-            phone: None,
-            country: None,
-        };
-        let event = Event::new(event).with_user_id(user.id);
-        match event.publish(self.es.clone()).await {
-            Ok(_) => (),
-            Err(e) => tracing::error!("Error occured in publishing user creation event: {e}"),
-        };
         Ok(())
     }
 
@@ -219,6 +213,7 @@ impl UserService {
             SELECT
                 id          as "id!: Uuid",
                 username    as "username!",
+        email,
                 password_hash as "password_hash!",
                 created_at  as "created_at!: chrono::DateTime<chrono::Utc>",
                 updated_at  as "updated_at!: chrono::DateTime<chrono::Utc>"
@@ -238,6 +233,7 @@ impl UserService {
             SELECT
                 id          as "id!: Uuid",
                 username    as "username!",
+        email,
                 password_hash as "password_hash!",
                 created_at  as "created_at!: chrono::DateTime<chrono::Utc>",
                 updated_at  as "updated_at!: chrono::DateTime<chrono::Utc>"
@@ -260,22 +256,10 @@ impl UserService {
     }
 
     pub async fn get_user_by_id(&self, id: &Uuid) -> Result<User, AuthError> {
-        sqlx::query_as!(
-            User,
-            r#"
-            SELECT
-                id          as "id!: Uuid",
-                username    as "username!",
-                password_hash as "password_hash!",
-                created_at  as "created_at!: chrono::DateTime<chrono::Utc>",
-                updated_at  as "updated_at!: chrono::DateTime<chrono::Utc>"
-            FROM users WHERE id = $1
-            "#,
-            id.to_string()
-        )
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|_| AuthError::UserNotFound)
+        self.repo
+            .retrieve(id)
+            .await
+            .map_err(|_| AuthError::UserNotFound)
     }
 
     async fn create_user(&self, username: &str, password_hash: &str) -> Result<User, AuthError> {
@@ -290,6 +274,7 @@ impl UserService {
             RETURNING
                 id          as "id!: Uuid",
                 username    as "username!",
+        email,
                 password_hash as "password_hash!",
                 created_at  as "created_at!: chrono::DateTime<chrono::Utc>",
                 updated_at  as "updated_at!: chrono::DateTime<chrono::Utc>"

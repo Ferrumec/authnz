@@ -2,19 +2,32 @@ mod authn;
 mod authz;
 mod models;
 mod proxy;
-
 use actix_web::{App, HttpServer, web};
+use authn::Module as AuthnModule;
+use authz::Module as AuthzModule;
 use awc::Client;
 use proxy::proxy;
+use sqlx::PgPool;
+use std::sync::Arc;
+use viewset::DefaultCache;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    HttpServer::new(|| {
+    let store = Arc::new(DefaultCache::new(1000));
+    let db_url = std::env::var("DATABASE_URL").expect("var DATABASE_URL not provided");
+    let pool = PgPool::connect(&db_url)
+        .await
+        .expect("could not connect to db");
+    let authentication = Arc::new(AuthnModule::new(pool.clone(), store).await);
+    let authorization = Arc::new(AuthzModule::new(pool));
+    HttpServer::new(move || {
         // Create one awc client for this Actix worker.
         let client = Client::default();
 
         App::new()
             .app_data(web::Data::new(client))
+            .configure(|cfg| authentication.clone().config(cfg, "authn"))
+            .configure(|cfg| authorization.clone().config(cfg, "authz"))
             .default_service(web::route().to(proxy))
     })
     .bind(("127.0.0.1", 8080))?

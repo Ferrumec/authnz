@@ -52,19 +52,3 @@ pub struct PasswordReset {
     pub expires_at: DateTime<Utc>,
     pub used: bool,
 }
-
-/// A row from the `users` table.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct ActiveUser {
-    pub id: Uuid,
-    pub username: String,
-}
-
-impl From<User> for ActiveUser {
-    fn from(user: User) -> Self {
-        Self {
-            id: user.id,
-            username: user.username,
-        }
-    }
-}

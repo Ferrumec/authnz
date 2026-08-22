@@ -2,7 +2,7 @@ use crate::authz::admin::{AbsoluteViewSet, PermViewSet};
 use crate::authz::models::Permission;
 use crate::authz::{
     handlers::*,
-    models::{AppState, CapacityError,LoadError, PermissionSet, ReadError},
+    models::{AppState, CapacityError, LoadError, PermissionSet, ReadError},
     services::Service,
 };
 use actix_web::web::{self, ServiceConfig};

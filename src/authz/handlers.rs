@@ -5,10 +5,7 @@ use crate::authz::{
     services::AdminError,
 };
 use crate::models::User;
-use actix_web::{
-    HttpResponse, Responder,
-    get, post, web,
-};
+use actix_web::{HttpResponse, Responder, get, post, web};
 use actixutils::Session;
 use serde::Serialize;
 use serde_json::json;
@@ -40,22 +37,13 @@ fn admin_error_response(e: AdminError) -> HttpResponse {
 }
 
 #[get("/list_permissions/{namespace}")]
-pub async fn list_permissions(
-    session: Session<User>,
-    state: web::Data<AppState>,
-) -> HttpResponse {
+pub async fn list_permissions(session: Session<User>, state: web::Data<AppState>) -> HttpResponse {
     let claims = session.read().await;
-    match state
-        .service
-        .list_permissions(claims.sub,)
-        .await
-    {
+    match state.service.list_permissions(claims.sub).await {
         Ok(perms) => {
             let permissions: Vec<PermissionView> = perms
                 .into_iter()
-                .map(|perm| PermissionView {
-                    name: perm.name,
-                })
+                .map(|perm| PermissionView { name: perm.name })
                 .collect();
             HttpResponse::Ok().json(json!({
                 "success": true,
@@ -100,11 +88,7 @@ pub async fn admin_deny_permission(
     body: web::Json<PermissionReq>,
 ) -> HttpResponse {
     let _claims = sess.read().await;
-    match state
-        .service
-        .admin_deny_permission(body.into_inner())
-        .await
-    {
+    match state.service.admin_deny_permission(body.into_inner()).await {
         Ok(Some(r)) => HttpResponse::Ok().json(json!({
             "success": true,
             "new_role": r
@@ -115,12 +99,8 @@ pub async fn admin_deny_permission(
     }
 }
 
-
 #[post("/admin/claim")]
-pub async fn claim_admin(
-    _state: web::Data<AppState>,
-    sess: Session<User>,
-) -> impl Responder {
+pub async fn claim_admin(_state: web::Data<AppState>, sess: Session<User>) -> impl Responder {
     let mut id = sess.write().await;
     let admin = match env::var("ADMIN") {
         Ok(r) => r,
@@ -142,4 +122,3 @@ pub async fn claim_admin(
     id.role = u128::MAX;
     HttpResponse::Ok().into()
 }
-

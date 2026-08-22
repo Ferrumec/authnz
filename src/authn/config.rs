@@ -1,15 +1,13 @@
 use crate::authn::admin::create_viewset;
-use crate::authn::domain::user::ActiveUser;
 #[cfg(feature = "passkey")]
 use crate::authn::passkey;
 use crate::authn::{auth2::AppState, handlers, passwdless::config, user_id::username2userid};
+use crate::models::User as ActiveUser;
 use actix_web::web::{self, Data, ServiceConfig};
 use actixutils::Store;
 use actixutils::middleware::SessionMiddleware;
-use actixutils::{Identity, Sign, Validate};
 use sqlx::{Error, Pool, Postgres};
 use std::{env::VarError, sync::Arc};
-use typed_eventbus::EventStream;
 use uuid::Uuid;
 use viewset::ViewSet;
 
@@ -45,21 +43,12 @@ impl From<Error> for SetupError {
     }
 }
 
-impl Validate<Identity> for AppState {
-    fn validate(&self, token: &str) -> anyhow::Result<Identity> {
-        self.validator.validate(token)
-    }
-}
-
 impl AuthModule {
     pub async fn new(
         pool: Pool<Postgres>,
-        signer: Arc<dyn Sign<Identity>>,
-        validator: Arc<dyn Validate<Identity>>,
-        es: Arc<dyn EventStream>,
         session_store: Arc<dyn Store<Uuid, ActiveUser>>,
     ) -> Self {
-        let app_state = AppState::new(pool.clone(), signer, validator, es, session_store).await;
+        let app_state = AppState::new(pool.clone(), session_store).await;
         Self {
             state: web::Data::new(app_state),
         }
@@ -73,7 +62,6 @@ impl AuthModule {
                 // `web::Data<AppState>` directly, so the shared state needs to
                 // be registered here too, not just the `AuthService` slice of it.
                 .app_data(self.state.clone())
-                .app_data(Data::new(self.state.auth_service.clone()))
                 .app_data(Data::new(self.state.session_service.clone()))
                 .service(username2userid)
                 .service(web::scope("/admin").configure(|cfg| {
@@ -84,7 +72,6 @@ impl AuthModule {
                         .route("/register", web::post().to(handlers::register))
                         .route("/login/email", web::post().to(handlers::login))
                         .route("/login/username", web::post().to(handlers::username_login))
-                        .route("/refresh", web::post().to(handlers::refresh))
                         .route("/logout", web::post().to(handlers::logout))
                         .route(
                             "/request_password_reset",

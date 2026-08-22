@@ -1,4 +1,4 @@
-use crate::authn::{auth2::random_token, domain::user::UserService as AuthService};
+use crate::authn::{auth2::random_token, domain::user::UserService};
 use moka::future::Cache;
 use rand::random;
 use serde::Serialize;
@@ -45,7 +45,7 @@ impl Caches {
 }
 
 pub struct PasswdlessService {
-    pub auth_service: AuthService,
+    pub auth_service: UserService,
     pub caches: Caches,
 }
 
@@ -70,7 +70,7 @@ async fn release_pair(email: Uuid, caches: &Caches) -> (u32, String) {
 }
 
 impl PasswdlessService {
-    pub fn new(auth_service: AuthService) -> Self {
+    pub fn new(auth_service: UserService) -> Self {
         Self {
             auth_service,
             caches: Caches::new(),
