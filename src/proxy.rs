@@ -2,6 +2,7 @@ use crate::models::User;
 use actix_web::{Error, HttpRequest, HttpResponse, http::header, web};
 use actixutils::Session;
 use awc::Client;
+use crate::authz::Service;
 const UPSTREAM: &str = "http://127.0.0.1:8081";
 
 pub async fn proxy(
@@ -9,6 +10,7 @@ pub async fn proxy(
     req: HttpRequest,
     body: web::Bytes,
     session: Session<User>,
+authz:web::Data<Service>
 ) -> Result<HttpResponse, Error> {
     let user = session.read().await;
     let uri = req
@@ -16,6 +18,20 @@ pub async fn proxy(
         .path_and_query()
         .map(|x| x.as_str())
         .unwrap_or(req.uri().path());
+    
+    let perm= match authz.get_permission(uri.to_string()).await{
+        Ok(r)=>r,
+        Err(e)=>{
+            tracing::error!("error in getting permission: {e}");
+            return Ok(HttpResponse::InternalServerError().finish())
+        }
+    };
+    if let Some(p) = perm{
+        if !(user.role & (1<<p.value)==(1<<p.value)){
+        return Ok(HttpResponse::Forbidden().finish())
+    }
+    }
+    
 
     let url = format!("{UPSTREAM}{uri}");
 
