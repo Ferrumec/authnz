@@ -9,4 +9,4 @@ mod passwdless;
 mod user_id;
 pub use config::AuthModule as Module;
 mod admin;
-pub use admin::User;
+pub use admin::{Session, SessionRepo, User};

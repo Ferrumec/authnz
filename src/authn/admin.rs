@@ -69,11 +69,21 @@ pub struct Session {
     id: Uuid,
     #[entity(sortable)]
     created_at: chrono::DateTime<chrono::Utc>,
+    pub sub: Uuid,
+    pub username: String,
+    pub email: String,
+    pub role: String,
 }
 
 pub struct SessionRepo {
     pool: PgPool,
     cache: Arc<dyn Store<Uuid, Session>>,
+}
+
+impl SessionRepo {
+    pub fn new(pool: PgPool, cache: Arc<dyn Store<Uuid, Session>>) -> Self {
+        Self { pool, cache }
+    }
 }
 
 impl Repository for SessionRepo {

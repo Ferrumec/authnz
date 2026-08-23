@@ -11,12 +11,12 @@
 //! i.e. the same Moka/Redis layer as the existing session middleware).
 //! Sessions use sliding expiration: every successful `validate` call
 //! extends the TTL.
-
 use crate::authn::domain::user::errors::AuthError;
 use crate::models::User;
 use actixutils::locals::Store;
 use std::sync::Arc;
 use uuid::Uuid;
+use viewset::Repository;
 // ── SessionService ────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
