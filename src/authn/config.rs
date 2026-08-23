@@ -72,7 +72,6 @@ impl AuthModule {
                         .route("/register", web::post().to(handlers::register))
                         .route("/login/email", web::post().to(handlers::login))
                         .route("/login/username", web::post().to(handlers::username_login))
-                        .route("/logout", web::post().to(handlers::logout))
                         .route(
                             "/request_password_reset",
                             web::post().to(handlers::request_password_reset),
@@ -86,6 +85,7 @@ impl AuthModule {
                 .service(
                     web::scope("/me")
                         .wrap(session_middleware)
+                        .route("/logout", web::post().to(handlers::logout))
                         .route("/account", web::get().to(handlers::protected))
                         .route(
                             "/change_password",

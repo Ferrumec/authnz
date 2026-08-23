@@ -14,7 +14,7 @@ use crate::authz::Service as AuthzService;
 use crate::models::User;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{HttpRequest, HttpResponse, Responder, web};
-use actixutils::{Identity, Session};
+use actixutils::Session;
 use uuid::Uuid;
 
 // ── Error → HTTP ──────────────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ pub async fn logout(sess: web::Data<SessionService>, req: HttpRequest) -> impl R
 
 pub async fn change_password(
     svc: web::Data<UserService>,
-    user_session: Session<Identity>,
+    user_session: Session<User>,
     req: web::Json<ChangePasswordRequest>,
 ) -> impl Responder {
     let user_id = user_session.read().await.sub;
@@ -197,7 +197,7 @@ pub async fn confirm_password_reset(
 /// Protected route: validates the JWT from the middleware and echoes the
 /// user ID back. Kept on `AppState` so the existing `actixutils::Access`
 /// extractor + `libsigners` validator continue to work unchanged.
-pub async fn protected(sess: Session<Identity>) -> impl Responder {
+pub async fn protected(sess: Session<User>) -> impl Responder {
     let id = sess.read().await;
     HttpResponse::Ok().json(ApiResponse::success(
         crate::authn::models::ProtectedResponse {

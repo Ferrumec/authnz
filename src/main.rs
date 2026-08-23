@@ -59,10 +59,10 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(client))
             .configure(|cfg| authentication.clone().config(cfg, "authn"))
-            .configure(|cfg| authorization.clone().config(cfg, "authz"))
             .service(
                 web::scope("")
                     .wrap(SessionMiddleware::required(store.clone()))
+                    .configure(|cfg| authorization.clone().config(cfg, "authz"))
                     .default_service(web::route().to(proxy)),
             )
     })
