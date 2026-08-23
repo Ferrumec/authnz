@@ -128,11 +128,10 @@ pub async fn username_login(
 }
 
 pub async fn logout(sess: web::Data<SessionService>, req: HttpRequest) -> impl Responder {
-    if let Some(sess_id) = req.cookie("session") {
-        if let Err(e) = sess.logout(sess_id.value()).await {
+    if let Some(sess_id) = req.cookie("session")
+        && let Err(e) = sess.logout(sess_id.value()).await {
             return auth_error_to_response(e);
         }
-    }
 
     HttpResponse::Ok().json(ApiResponse::success((), "Logged out successfully"))
 }
@@ -183,11 +182,10 @@ pub async fn confirm_password_reset(
     };
     match svc.confirm_password_reset(cmd).await {
         Ok(_user_id) => {
-            if let Some(sess_id) = req.cookie("session") {
-                if let Err(e) = sess.logout(sess_id.value()).await {
+            if let Some(sess_id) = req.cookie("session")
+                && let Err(e) = sess.logout(sess_id.value()).await {
                     return auth_error_to_response(e);
-                }
-            };
+                };
             HttpResponse::Ok().finish()
         }
         Err(e) => auth_error_to_response(e),

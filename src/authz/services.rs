@@ -64,7 +64,7 @@ impl Service {
     pub async fn get_absolute_role(&self, to_id: &Uuid) -> Result<u128, SqlxError> {
         match self.absolute_repo.retrieve(to_id).await {
             Ok(grant) => Ok(parse_role(grant.role)?),
-            Err(_) => return Ok(0),
+            Err(_) => Ok(0),
         }
     }
 

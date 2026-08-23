@@ -9,13 +9,11 @@ use viewset::{ApiError, DefaultRepo, DefaultViewSet, Entity, Repository, Service
 
 #[derive(Entity, FromRow, Serialize, Clone)]
 #[entity(
-    table = "users",
     create = "CreateUser",
     update = "UpdateUser",
     response = "UserDto"
 )]
 pub struct User {
-    #[entity(pk)]
     pub id: Uuid,
     #[entity(searchable, sortable, filterable)]
     pub username: String,
@@ -65,7 +63,6 @@ impl From<User> for UserDto {
 
 #[derive(Entity, FromRow, Serialize, Clone, Deserialize)]
 pub struct Session {
-    #[entity(pk)]
     id: Uuid,
     #[entity(sortable)]
     created_at: chrono::DateTime<chrono::Utc>,
