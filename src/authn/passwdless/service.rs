@@ -52,7 +52,7 @@ pub struct PasswdlessService {
 fn random_int(minimum: u32) -> u32 {
     let mut number = 1;
     while number < minimum {
-        number *= random::<u32>();
+        number *= random::<u32>() + 1;
     }
     number
 }
@@ -66,6 +66,7 @@ async fn release_pair(email: Uuid, caches: &Caches) -> (u32, String) {
         email,
     };
     caches.tokens.insert(token, fa2.clone()).await;
+    caches.links.insert(link.clone(), fa2.clone()).await;
     (token, link)
 }
 

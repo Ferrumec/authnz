@@ -54,12 +54,8 @@ pub struct Service {
 
 impl Service {
     pub async fn get_permission(&self, name: String) -> Result<Option<Permission>, SqlxError> {
-        let perm = match self
-            .perm_repo
-            .retrieve(&name)
-            .await
-        {
-            Ok(list ) => list,
+        let perm = match self.perm_repo.retrieve(&name).await {
+            Ok(list) => list,
             Err(_) => return Ok(None),
         };
         Ok(Some(perm2permission(perm)))
