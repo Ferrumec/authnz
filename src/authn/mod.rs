@@ -10,3 +10,4 @@ mod user_id;
 pub use config::AuthModule as Module;
 mod admin;
 pub use admin::{Session, SessionRepo, User};
+pub use domain::SessionService;

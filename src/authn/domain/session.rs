@@ -11,28 +11,41 @@
 //! i.e. the same Moka/Redis layer as the existing session middleware).
 //! Sessions use sliding expiration: every successful `validate` call
 //! extends the TTL.
+use crate::SessionRepo;
 use crate::authn::domain::user::errors::AuthError;
 use crate::models::User;
-use actixutils::locals::Store;
-use std::sync::Arc;
 use uuid::Uuid;
-use viewset::Repository;
+use viewset::{ApiError, Repository};
 // ── SessionService ────────────────────────────────────────────────────────────
 
 #[derive(Clone)]
 pub struct SessionService {
-    store: Arc<dyn Store<Uuid, User>>,
+    store: SessionRepo,
+}
+
+impl From<ApiError> for AuthError {
+    fn from(value: ApiError) -> Self {
+        match value {
+            ApiError::Database(e) => AuthError::Database(e),
+            ApiError::NotFound
+            | ApiError::Validation(_)
+            | ApiError::Forbidden
+            | ApiError::Unauthorized
+            | ApiError::Conflict(_)
+            | ApiError::StaleVersion
+            | ApiError::Internal(_) => AuthError::InvalidCredentials,
+        }
+    }
 }
 
 impl SessionService {
-    pub fn new(store: Arc<dyn Store<Uuid, User>>) -> Self {
+    pub fn new(store: SessionRepo) -> Self {
         Self { store }
     }
 
     pub async fn issue_session(&self, user: User) -> Result<Uuid, AuthError> {
-        let session_id = Uuid::new_v4();
-        self.write_session(&session_id, user).await?;
-        Ok(session_id)
+        let session = self.store.create(&user).await?;
+        Ok(session.id)
     }
 
     // ── Logout ────────────────────────────────────────────────────────────────
@@ -48,16 +61,6 @@ impl SessionService {
         };
         if let Err(e) = self.store.delete(&session_id).await {
             tracing::error!("failed to delete session: {e}");
-            return Err(AuthError::Cache);
-        }
-        Ok(())
-    }
-
-    // ── Private helpers ───────────────────────────────────────────────────────
-
-    async fn write_session(&self, session_id: &Uuid, data: User) -> Result<(), AuthError> {
-        if let Err(e) = self.store.set(session_id, data).await {
-            tracing::error!("failed to set session: {e}");
             return Err(AuthError::Cache);
         }
         Ok(())

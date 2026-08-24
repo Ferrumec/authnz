@@ -3,7 +3,7 @@ use crate::authn::admin::create_viewset;
 use crate::authn::passkey;
 use crate::authn::{auth2::AppState, handlers, passwdless::config, user_id::username2userid};
 use crate::models::User as ActiveUser;
-use actix_web::web::{self, Data, ServiceConfig};
+use actix_web::web::{self, ServiceConfig};
 use actixutils::Store;
 use actixutils::middleware::SessionMiddleware;
 use sqlx::{Error, Pool, Postgres};
@@ -14,6 +14,7 @@ use viewset::ViewSet;
 #[derive(Clone)]
 pub struct AuthModule {
     state: web::Data<AppState>,
+    session_store: Arc<dyn Store<Uuid, ActiveUser>>,
 }
 
 #[derive(Debug)]
@@ -48,14 +49,15 @@ impl AuthModule {
         pool: Pool<Postgres>,
         session_store: Arc<dyn Store<Uuid, ActiveUser>>,
     ) -> Self {
-        let app_state = AppState::new(pool.clone(), session_store).await;
+        let app_state = AppState::new(pool.clone()).await;
         Self {
             state: web::Data::new(app_state),
+            session_store,
         }
     }
     pub fn config(&self, cfg: &mut ServiceConfig, namespace: &str) {
         let session_middleware: SessionMiddleware<ActiveUser> =
-            SessionMiddleware::required(self.state.session_store.clone());
+            SessionMiddleware::required(self.session_store.clone());
         #[cfg_attr(not(feature = "passkey"), allow(unused_mut))]
         let mut scope =
             web::scope(namespace)
@@ -63,7 +65,6 @@ impl AuthModule {
                 // `web::Data<AppState>` directly, so the shared state needs to
                 // be registered here too, not just the `AuthService` slice of it.
                 .app_data(self.state.clone())
-                .app_data(Data::new(self.state.session_service.clone()))
                 .service(username2userid)
                 .service(web::scope("/admin").configure(|cfg| {
                     create_viewset(self.state.pool.clone()).configure(cfg, "users")

@@ -61,7 +61,7 @@ impl From<User> for UserDto {
 #[derive(Entity, FromRow, Serialize, Clone, Deserialize)]
 #[entity(table = "sessions", create = "ActiveUser")]
 pub struct Session {
-    id: Uuid,
+    pub id: Uuid,
     #[entity(sortable)]
     created_at: chrono::DateTime<chrono::Utc>,
     pub sub: Uuid,
@@ -70,6 +70,7 @@ pub struct Session {
     pub role: String,
 }
 
+#[derive(Clone)]
 pub struct SessionRepo {
     pool: PgPool,
     cache: Arc<dyn Store<Uuid, Session>>,

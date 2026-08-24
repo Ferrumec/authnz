@@ -2,7 +2,7 @@ mod authn;
 mod authz;
 mod models;
 mod proxy;
-use crate::authn::{Session, SessionRepo};
+use crate::authn::{Session, SessionRepo, SessionService};
 use actix_web::{App, HttpServer, web};
 use actixutils::Store;
 use actixutils::middleware::SessionMiddleware;
@@ -30,7 +30,9 @@ impl Store<Uuid, User> for SessionRepo {
         }))
     }
     async fn set(&self, _id: &Uuid, value: User) -> Result<(), Box<dyn Error>> {
-        self.create(&value).await?;
+        // This session store is meant to be used session middleware
+        // which we don't expect to be minting sessions
+        //self.create(&value).await?;
         Ok(())
     }
     async fn delete(&self, id: &Uuid) -> Result<(), Box<dyn Error>> {
@@ -50,6 +52,7 @@ async fn main() -> std::io::Result<()> {
         .await
         .expect("could not connect to db");
     let session_repo: SessionRepo = SessionRepo::new(pool.clone(), cache.clone());
+    let session_service = web::Data::new(SessionService::new(session_repo.clone()));
     let store = Arc::new(session_repo);
     let authentication = Arc::new(AuthnModule::new(pool.clone(), store.clone()).await);
     let authorization = Arc::new(AuthzModule::new(pool));
@@ -60,6 +63,7 @@ async fn main() -> std::io::Result<()> {
 
         App::new()
             .app_data(web::Data::new(client))
+            .app_data(session_service.clone())
             .configure(|cfg| authentication.clone().config(cfg, "authn"))
             .service(
                 web::scope("")
