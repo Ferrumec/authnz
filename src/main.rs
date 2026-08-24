@@ -5,7 +5,7 @@ mod proxy;
 use crate::authn::{Session, SessionRepo, SessionService};
 use actix_web::{App, HttpServer, web};
 use actixutils::Store;
-use actixutils::middleware::SessionMiddleware;
+use actixutils::middleware::{PermissionSet, Permissions, Principal, SessionMiddleware};
 use authn::Module as AuthnModule;
 use authz::Module as AuthzModule;
 use awc::Client;
@@ -29,7 +29,7 @@ impl Store<Uuid, User> for SessionRepo {
             role: session.role.parse().unwrap(),
         }))
     }
-    async fn set(&self, _id: &Uuid, value: User) -> Result<(), Box<dyn Error>> {
+    async fn set(&self, _id: &Uuid, _value: User) -> Result<(), Box<dyn Error>> {
         // This session store is meant to be used session middleware
         // which we don't expect to be minting sessions
         //self.create(&value).await?;
@@ -41,6 +41,12 @@ impl Store<Uuid, User> for SessionRepo {
     }
     async fn clear(&self) -> Result<(), Box<dyn Error>> {
         Ok(())
+    }
+}
+
+impl Principal for User {
+    fn role(&self) -> u128 {
+        self.role
     }
 }
 
@@ -56,7 +62,13 @@ async fn main() -> std::io::Result<()> {
     let store = Arc::new(session_repo);
     let authentication = Arc::new(AuthnModule::new(pool.clone(), store.clone()).await);
     let authorization = Arc::new(AuthzModule::new(pool));
-
+    let permissions = match PermissionSet::from_file("permissions.json") {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!("failed to load permission set: {e}");
+            panic!()
+        }
+    };
     HttpServer::new(move || {
         // Create one awc client for this Actix worker.
         let client = Client::default();
@@ -64,6 +76,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(client))
             .app_data(session_service.clone())
+            .wrap(Permissions::<User>::new(permissions.clone()))
             .configure(|cfg| authentication.clone().config(cfg, "authn"))
             .service(
                 web::scope("")
