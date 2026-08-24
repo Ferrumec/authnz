@@ -36,7 +36,7 @@ fn admin_error_response(e: AdminError) -> HttpResponse {
     }
 }
 
-#[get("/list_permissions/{namespace}")]
+#[get("/list_permissions")]
 pub async fn list_permissions(session: Session<User>, state: web::Data<AppState>) -> HttpResponse {
     let claims = session.read().await;
     match state.service.list_permissions(claims.sub).await {
@@ -63,7 +63,11 @@ pub async fn admin_grant_permission(
     state: web::Data<AppState>,
     body: web::Json<PermissionReq>,
 ) -> HttpResponse {
-    let _claims = sess.read().await;
+    let claims = sess.read().await;
+    let required_perm: u128 = 1 << 127;
+    if !(claims.role & required_perm == required_perm) {
+        return HttpResponse::Forbidden().finish();
+    }
     match state
         .service
         .admin_grant_permission(body.into_inner())
@@ -87,7 +91,11 @@ pub async fn admin_deny_permission(
     state: web::Data<AppState>,
     body: web::Json<PermissionReq>,
 ) -> HttpResponse {
-    let _claims = sess.read().await;
+    let claims = sess.read().await;
+    let required_perm: u128 = 1 << 126;
+    if !(claims.role & required_perm == required_perm) {
+        return HttpResponse::Forbidden().finish();
+    }
     match state.service.admin_deny_permission(body.into_inner()).await {
         Ok(Some(r)) => HttpResponse::Ok().json(json!({
             "success": true,
