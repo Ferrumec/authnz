@@ -74,7 +74,7 @@ impl Service {
             r#"
         INSERT INTO absolutes (to_id, role)
         VALUES ($1, $2)
-        ON CONFLICT(to_id, aud) DO UPDATE SET role = absolutes.role || excluded.role
+        ON CONFLICT(to_id, aud) DO UPDATE SET role = excluded.role
         "#,
             to_id,
             role
