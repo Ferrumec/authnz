@@ -56,7 +56,8 @@ impl AuthModule {
     pub fn config(&self, cfg: &mut ServiceConfig, namespace: &str) {
         let session_middleware: SessionMiddleware<ActiveUser> =
             SessionMiddleware::required(self.state.session_store.clone());
-        let scope =
+        #[cfg_attr(not(feature = "passkey"), allow(unused_mut))]
+        let mut scope =
             web::scope(namespace)
                 // `username2userid` and the `/passwordless` handlers extract
                 // `web::Data<AppState>` directly, so the shared state needs to

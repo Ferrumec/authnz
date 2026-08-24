@@ -19,7 +19,7 @@ use uuid::Uuid;
 
 // ── Error → HTTP ──────────────────────────────────────────────────────────────
 
-fn auth_error_to_response(e: AuthError) -> HttpResponse {
+pub fn auth_error_to_response(e: AuthError) -> HttpResponse {
     match e {
         AuthError::MissingCredentials
         | AuthError::PasswordTooShort

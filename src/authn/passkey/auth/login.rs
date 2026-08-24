@@ -1,15 +1,24 @@
+use crate::authn::domain::user::UserService;
+use crate::authn::passkey::repository::CredsRepo;
 use crate::authn::{
     auth2::AppState,
-    handlers::access_cookie,
-    models::{ApiResponse, LoginResponse},
-    passkey::{error::ErrorResponse, models::UsernameRequest, repository},
+    domain::SessionService,
+    handlers::{auth_error_to_response, session_cookie},
+    passkey::{error::ErrorResponse, models::UsernameRequest},
 };
+use crate::authz::Service as AuthzService;
+use crate::models::User;
 use actix_web::{HttpResponse, web};
 use webauthn_rs::prelude::PublicKeyCredential;
 
 /// `POST /passkey/login/start` — begin a passkey login for the given
 /// username. Public route: no session exists yet.
-pub async fn start(state: web::Data<AppState>, req: web::Json<UsernameRequest>) -> HttpResponse {
+pub async fn start(
+    auth_service: web::Data<UserService>,
+    req: web::Json<UsernameRequest>,
+    repo: web::Data<CredsRepo>,
+    state: web::Data<AppState>,
+) -> HttpResponse {
     let username = req.username.trim().to_string();
     if username.is_empty() {
         return ErrorResponse::bad_request("Username is required");
@@ -17,12 +26,12 @@ pub async fn start(state: web::Data<AppState>, req: web::Json<UsernameRequest>) 
 
     // Same response whether the account exists or just has no passkeys,
     // so this endpoint can't be used to enumerate registered usernames.
-    let user = match state.auth_service.get_user_by_username(&username).await {
+    let user = match auth_service.get_user_by_username(&username).await {
         Ok(u) => u,
         Err(_) => return ErrorResponse::bad_request("No passkeys registered for this account"),
     };
 
-    let credentials = match repository::credentials_for_user(&state.pool, user.id).await {
+    let credentials = match repo.credentials_for_user(user.id).await {
         Ok(c) => c,
         Err(e) => {
             tracing::warn!("passkey login/start: could not load credentials: {e}");
@@ -56,13 +65,17 @@ pub async fn start(state: web::Data<AppState>, req: web::Json<UsernameRequest>) 
 /// assertion and, on success, issue the same access/refresh token pair
 /// every other login method returns.
 pub async fn finish(
-    state: web::Data<AppState>,
+    auth_service: web::Data<UserService>,
     credential: web::Json<PublicKeyCredential>,
     query: web::Query<UsernameRequest>,
+    repo: web::Data<CredsRepo>,
+    sess: web::Data<SessionService>,
+    authz: web::Data<AuthzService>,
+    state: web::Data<AppState>,
 ) -> HttpResponse {
     let username = query.username.trim().to_string();
 
-    let user = match state.auth_service.get_user_by_username(&username).await {
+    let user = match auth_service.get_user_by_username(&username).await {
         Ok(u) => u,
         Err(_) => {
             return ErrorResponse::bad_request("No authentication in progress for this account");
@@ -93,14 +106,14 @@ pub async fn finish(
     // WebAuthn tracks a per-credential signature counter to detect cloned
     // authenticators. If the library says the stored state needs updating,
     // persist the refreshed credential.
-    match repository::credentials_for_user(&state.pool, user.id).await {
+    match repo.credentials_for_user(user.id).await {
         Ok(mut credentials) => {
             if let Some(cred) = credentials
                 .iter_mut()
                 .find(|c| c.cred_id() == result.cred_id())
             {
                 if let Some(true) = cred.update_credential(&result) {
-                    if let Err(e) = repository::update_credential(&state.pool, cred).await {
+                    if let Err(e) = repo.update_credential(cred).await {
                         tracing::warn!(
                             "passkey login/finish: failed to persist counter update: {e}"
                         );
@@ -111,27 +124,16 @@ pub async fn finish(
         Err(e) => tracing::warn!("passkey login/finish: could not reload credentials: {e}"),
     }
 
-    let auth_result = match state.auth_service.issue_for_passwordless(user.id).await {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::warn!("passkey login/finish: failed to issue tokens: {e}");
-            return ErrorResponse::internal();
-        }
+    let role = match authz.get_absolute_role(&user.id).await {
+        Ok(u) => u,
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+    let user = User::new(user, role);
+
+    let sess_id = match sess.issue_session(user).await {
+        Ok(sess_id) => sess_id,
+        Err(e) => return auth_error_to_response(e),
     };
 
-    tracing::info!(
-        "Passkey login successful for user: {} (verified: {})",
-        username,
-        result.user_verified()
-    );
-
-    let cookie = access_cookie(&auth_result.access_token);
-    HttpResponse::Ok().cookie(cookie).json(ApiResponse::success(
-        LoginResponse {
-            access_token: auth_result.access_token,
-            refresh_token: auth_result.refresh_token,
-            expires_in: auth_result.expires_in,
-        },
-        "Passkey login successful",
-    ))
+    HttpResponse::Ok().cookie(session_cookie(&sess_id)).finish()
 }
