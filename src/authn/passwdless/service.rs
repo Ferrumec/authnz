@@ -100,7 +100,7 @@ impl PasswdlessService {
 
     pub async fn challenge_by_email(
         &self,
-        email: &String,
+        email: &str,
     ) -> Result<ChallengeRequested, PasswdlessError> {
         let user = match self.auth_service.get_user_by_email(email).await {
             Ok(r) => r,
@@ -114,7 +114,7 @@ impl PasswdlessService {
     }
     pub async fn challenge_by_username(
         &self,
-        email: &String,
+        email: &str,
     ) -> Result<ChallengeRequested, PasswdlessError> {
         let user = match self.auth_service.get_user_by_username(email).await {
             Ok(r) => r,

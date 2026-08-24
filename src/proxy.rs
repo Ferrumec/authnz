@@ -27,9 +27,10 @@ pub async fn proxy(
         }
     };
     if let Some(p) = perm
-        && (user.role & (1 << p.value) != (1 << p.value)) {
-            return Ok(HttpResponse::Forbidden().finish());
-        }
+        && (user.role & (1 << p.value) != (1 << p.value))
+    {
+        return Ok(HttpResponse::Forbidden().finish());
+    }
 
     let url = format!("{UPSTREAM}{uri}");
 

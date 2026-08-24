@@ -1,7 +1,8 @@
 use crate::authn::User as CoreUser;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct User {
     pub sub: Uuid,
     pub username: String,

@@ -1,3 +1,4 @@
+use crate::models::User as ActiveUser;
 use actixutils::Store;
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;
@@ -8,11 +9,7 @@ use uuid::Uuid;
 use viewset::{ApiError, DefaultRepo, DefaultViewSet, Entity, Repository, Service};
 
 #[derive(Entity, FromRow, Serialize, Clone)]
-#[entity(
-    create = "CreateUser",
-    update = "UpdateUser",
-    response = "UserDto"
-)]
+#[entity(create = "CreateUser", update = "UpdateUser", response = "UserDto")]
 pub struct User {
     pub id: Uuid,
     #[entity(searchable, sortable, filterable)]
@@ -62,6 +59,7 @@ impl From<User> for UserDto {
 }
 
 #[derive(Entity, FromRow, Serialize, Clone, Deserialize)]
+#[entity(table = "sessions", create = "ActiveUser")]
 pub struct Session {
     id: Uuid,
     #[entity(sortable)]

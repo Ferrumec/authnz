@@ -29,10 +29,12 @@ impl Store<Uuid, User> for SessionRepo {
             role: session.role.parse().unwrap(),
         }))
     }
-    async fn set(&self, _id: &Uuid, _value: User) -> Result<(), Box<dyn Error>> {
+    async fn set(&self, _id: &Uuid, value: User) -> Result<(), Box<dyn Error>> {
+        self.create(&value).await?;
         Ok(())
     }
-    async fn delete(&self, _id: &Uuid) -> Result<(), Box<dyn Error>> {
+    async fn delete(&self, id: &Uuid) -> Result<(), Box<dyn Error>> {
+        Repository::delete(self, id).await?;
         Ok(())
     }
     async fn clear(&self) -> Result<(), Box<dyn Error>> {
