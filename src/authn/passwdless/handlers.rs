@@ -50,7 +50,7 @@ struct Email {
     email: String,
 }
 
-#[get("/challenge/email")]
+#[post("/challenge/email")]
 async fn challenge1(data: web::Data<AppState>, email: web::Json<Email>) -> impl Responder {
     match data
         .passwdless_service
@@ -92,7 +92,7 @@ async fn confirm(
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
-    let role = match authz.get_absolute_role(&user_id).await {
+    let role = match authz.get_role(&user_id).await {
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
@@ -124,7 +124,7 @@ async fn confirm_token(
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
 
-    let role = match authz.get_absolute_role(&user_id).await {
+    let role = match authz.get_role(&user_id).await {
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };

@@ -1,7 +1,6 @@
-use crate::authz::admin::{AbsoluteRepo, Perm, PermRepo};
-use crate::authz::models::Permission;
-use crate::authz::models::{PermissionReq, perm2permission, permission2perm};
-use sqlx::{Error as SqlxError, Pool, Postgres, query_as};
+use crate::authz::admin::AbsoluteRepo;
+use crate::authz::models::PermissionReq;
+use sqlx::{Error as SqlxError, Pool, Postgres};
 use std::sync::Arc;
 use uuid::Uuid;
 use viewset::Repository;
@@ -21,17 +20,6 @@ fn parse_role(s: String) -> Result<u128, SqlxError> {
         .map_err(|_| SqlxError::Decode("invalid role bitmask".into()))
 }
 
-pub enum CreateTenantTokenError {
-    NoPermission,
-    Sqlx(SqlxError),
-}
-
-impl From<SqlxError> for CreateTenantTokenError {
-    fn from(value: SqlxError) -> Self {
-        CreateTenantTokenError::Sqlx(value)
-    }
-}
-
 #[derive(Debug)]
 pub enum AdminError {
     Sqlx(SqlxError),
@@ -49,26 +37,17 @@ impl From<SqlxError> for AdminError {
 pub struct Service {
     pub db: Pool<Postgres>,
     pub absolute_repo: Arc<AbsoluteRepo>,
-    pub perm_repo: Arc<PermRepo>,
 }
 
 impl Service {
-    pub async fn get_permission(&self, name: String) -> Result<Option<Permission>, SqlxError> {
-        let perm = match self.perm_repo.retrieve(&name).await {
-            Ok(list) => list,
-            Err(_) => return Ok(None),
-        };
-        Ok(Some(perm2permission(perm)))
-    }
-
-    pub async fn get_absolute_role(&self, to_id: &Uuid) -> Result<u128, SqlxError> {
+    pub async fn get_role(&self, to_id: &Uuid) -> Result<u128, SqlxError> {
         match self.absolute_repo.retrieve(to_id).await {
             Ok(grant) => Ok(parse_role(grant.role)?),
             Err(_) => Ok(0),
         }
     }
 
-    async fn insert_absolute_role(&self, to_id: &Uuid, role: u128) -> Result<(), SqlxError> {
+    async fn insert_role(&self, to_id: &Uuid, role: u128) -> Result<(), SqlxError> {
         let role = role.to_string();
         sqlx::query!(
             r#"
@@ -84,7 +63,7 @@ impl Service {
         Ok(())
     }
 
-    async fn update_absolute_role(&self, to_id: &Uuid, role: u128) -> Result<(), SqlxError> {
+    async fn update_role(&self, to_id: &Uuid, role: u128) -> Result<(), SqlxError> {
         let role = role.to_string();
         sqlx::query!(
             r#"UPDATE absolutes SET role = $1 WHERE to_id = $2"#,
@@ -96,25 +75,6 @@ impl Service {
         Ok(())
     }
 
-    pub async fn list_permissions(&self, user: Uuid) -> Result<Vec<Perm>, SqlxError> {
-        let perms = query_as!(Perm, "SELECT name, value FROM permissions",)
-            .fetch_all(&self.db)
-            .await?;
-        let role = self.get_absolute_role(&user).await?;
-
-        let permissions: Vec<Perm> = perms
-            .iter()
-            // Convert perms to permissions
-            .map(|p| perm2permission(p.clone()))
-            // Filter for the current role
-            .filter(|p| role & p.value == p.value)
-            // Convert back to perms
-            .map(|p| permission2perm(p.clone()))
-            .collect();
-
-        Ok(permissions)
-    }
-
     /// Grants `request.target` the permission in `request`, unconditionally.
     /// Callers MUST verify the caller is actually authorized (e.g. via
     /// `is_admin_for`) before calling this — it performs no auth check itself.
@@ -123,18 +83,15 @@ impl Service {
         request: PermissionReq,
     ) -> Result<Option<u128>, SqlxError> {
         // Validate permission
-        let perm = match self.get_permission(request.permission).await? {
-            Some(p) => p,
-            None => {
-                println!("Invalid permission");
-                return Ok(None);
-            }
-        };
-        let current_role = self.get_absolute_role(&request.target).await?;
+        if request.permission > 127 {
+            return Ok(None);
+        }
+        let perm_value = 1 << request.permission;
+        let current_role = self.get_role(&request.target).await?;
 
-        let new_role = current_role | perm.value;
+        let new_role = current_role | perm_value;
         // Grant the permission
-        self.insert_absolute_role(&request.target, new_role).await?;
+        self.insert_role(&request.target, new_role).await?;
 
         Ok(Some(new_role))
     }
@@ -145,19 +102,15 @@ impl Service {
         &self,
         request: PermissionReq,
     ) -> Result<Option<u128>, SqlxError> {
-        let perm = match self.get_permission(request.permission).await? {
-            Some(p) => p,
-            None => return Ok(None),
-        };
-
-        let role = self.get_absolute_role(&request.target).await?;
-
-        if role & perm.value == 0 {
+        if request.permission > 127 {
             return Ok(None);
         }
+        let perm_value = 1 << request.permission;
 
-        let role = role & !perm.value;
-        self.update_absolute_role(&request.target, role).await?;
+        let role = self.get_role(&request.target).await?;
+
+        let role = role & !perm_value;
+        self.update_role(&request.target, role).await?;
 
         Ok(Some(role))
     }

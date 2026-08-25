@@ -17,20 +17,6 @@ pub struct Absolute {
     pub role: String,
 }
 
-#[derive(FromRow, Deserialize, Serialize, Clone, Entity)]
-#[entity(table = "permissions")]
-pub struct Perm {
-    #[entity(pk)]
-    pub name: String,
-
-    /// The index of this permission in the permissions bit string.
-    /// It's a value between 0 and 128.
-    pub value: i64,
-}
-
-pub type PermRepo = DefaultRepo<Perm>;
-pub type PermService = DefaultService<PermRepo>;
-pub type PermViewSet = DefaultViewSet<PermService>;
 pub type AbsoluteRepo = DefaultRepo<Absolute>;
 pub type AbsoluteService = DefaultService<AbsoluteRepo>;
 pub type AbsoluteViewSet = DefaultViewSet<AbsoluteService>;

@@ -124,7 +124,7 @@ pub async fn finish(
         Err(e) => tracing::warn!("passkey login/finish: could not reload credentials: {e}"),
     }
 
-    let role = match authz.get_absolute_role(&user.id).await {
+    let role = match authz.get_role(&user.id).await {
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };

@@ -6,7 +6,7 @@ use crate::models::User as ActiveUser;
 use crate::models::User;
 use actix_web::web::{self, ServiceConfig};
 use actixutils::Store;
-use actixutils::middleware::{PermissionSet, Permissions, Principal, SessionMiddleware};
+use actixutils::middleware::{PermissionSet, Permissions, SessionMiddleware};
 use sqlx::{Error, Pool, Postgres};
 use std::{env::VarError, sync::Arc};
 use uuid::Uuid;

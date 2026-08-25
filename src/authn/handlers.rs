@@ -83,7 +83,7 @@ pub async fn login(
         Err(e) => return auth_error_to_response(e),
     };
 
-    let role = match authz.get_absolute_role(&user.id).await {
+    let role = match authz.get_role(&user.id).await {
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
@@ -113,7 +113,7 @@ pub async fn username_login(
         Err(e) => return auth_error_to_response(e),
     };
 
-    let role = match authz.get_absolute_role(&user.id).await {
+    let role = match authz.get_role(&user.id).await {
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };

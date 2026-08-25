@@ -5,7 +5,7 @@ use crate::authz::{
     services::AdminError,
 };
 use crate::models::User;
-use actix_web::{HttpResponse, Responder, get, post, web};
+use actix_web::{HttpResponse, Responder, post, web};
 use actixutils::Session;
 use serde::Serialize;
 use serde_json::json;
@@ -36,26 +36,6 @@ fn admin_error_response(e: AdminError) -> HttpResponse {
     }
 }
 
-#[get("/list_permissions")]
-pub async fn list_permissions(session: Session<User>, state: web::Data<AppState>) -> HttpResponse {
-    let claims = session.read().await;
-    match state.service.list_permissions(claims.sub).await {
-        Ok(perms) => {
-            let permissions: Vec<PermissionView> = perms
-                .into_iter()
-                .map(|perm| PermissionView { name: perm.name })
-                .collect();
-            HttpResponse::Ok().json(json!({
-                "success": true,
-                "permissions": permissions
-            }))
-        }
-        Err(e) => {
-            tracing::error!("Error in listing permissions: {}", e);
-            HttpResponse::InternalServerError().finish()
-        }
-    }
-}
 
 #[post("/admin/grant")]
 pub async fn admin_grant_permission(

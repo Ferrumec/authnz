@@ -123,8 +123,14 @@ impl UserService {
         }
 
         let new_hash = bcrypt::hash(&cmd.new_password, 10)?;
-        self.update_password(&cmd.user_id, &new_hash).await?;
 
+        sqlx::query!(
+            "UPDATE users SET password_hash = $1 WHERE id = $2",
+            new_hash,
+            cmd.user_id.to_string()
+        )
+        .execute(&self.pool)
+        .await?;
         Ok(())
     }
 
@@ -300,18 +306,5 @@ impl UserService {
             sqlx::Error::Database(db) if db.is_unique_violation() => AuthError::UserAlreadyExists,
             _ => AuthError::Database(e),
         })
-    }
-
-    async fn update_password(&self, user_id: &Uuid, hash: &str) -> Result<(), AuthError> {
-        let now = Utc::now();
-        sqlx::query!(
-            "UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3",
-            hash,
-            now,
-            user_id.to_string()
-        )
-        .execute(&self.pool)
-        .await?;
-        Ok(())
     }
 }
