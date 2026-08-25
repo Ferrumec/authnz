@@ -64,7 +64,7 @@ pub async fn admin_grant_permission(
     body: web::Json<PermissionReq>,
 ) -> HttpResponse {
     let claims = sess.read().await;
-    let required_perm: u128 = 1 << 127;
+    let required_perm: u128 = 1 << 106;
     if !(claims.role & required_perm == required_perm) {
         return HttpResponse::Forbidden().finish();
     }
@@ -92,7 +92,7 @@ pub async fn admin_deny_permission(
     body: web::Json<PermissionReq>,
 ) -> HttpResponse {
     let claims = sess.read().await;
-    let required_perm: u128 = 1 << 126;
+    let required_perm: u128 = 1 << 105;
     if !(claims.role & required_perm == required_perm) {
         return HttpResponse::Forbidden().finish();
     }
