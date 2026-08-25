@@ -195,14 +195,23 @@ impl UserService {
         }
 
         let new_hash = bcrypt::hash(&cmd.new_password, 10)?;
-        self.update_password(&reset.user_id, &new_hash).await?;
-
+        let now = Utc::now();
+        let mut tx = self.pool.begin().await?;
+        sqlx::query!(
+            "UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3",
+            new_hash,
+            now,
+            reset.user_id.to_string()
+        )
+        .execute(&mut *tx)
+        .await?;
         sqlx::query!(
             "UPDATE password_resets SET used = TRUE WHERE id = $1",
             reset.id
         )
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await?;
+        tx.commit().await?;
         Ok(reset.user_id)
     }
 
