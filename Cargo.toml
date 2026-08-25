@@ -26,6 +26,7 @@ async-trait = "0.1.89"
 rust_decimal = "1.42.1"
 viewset = "0.2"
 awc = "3.8.2"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 
 [features]
 passkey = ["webauthn-rs"]

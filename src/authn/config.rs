@@ -3,9 +3,10 @@ use crate::authn::admin::create_viewset;
 use crate::authn::passkey;
 use crate::authn::{auth2::AppState, handlers, passwdless::config, user_id::username2userid};
 use crate::models::User as ActiveUser;
+use crate::models::User;
 use actix_web::web::{self, ServiceConfig};
 use actixutils::Store;
-use actixutils::middleware::SessionMiddleware;
+use actixutils::middleware::{PermissionSet, Permissions, Principal, SessionMiddleware};
 use sqlx::{Error, Pool, Postgres};
 use std::{env::VarError, sync::Arc};
 use uuid::Uuid;
@@ -15,6 +16,7 @@ use viewset::ViewSet;
 pub struct AuthModule {
     state: web::Data<AppState>,
     session_store: Arc<dyn Store<Uuid, ActiveUser>>,
+    permissions: PermissionSet,
 }
 
 #[derive(Debug)]
@@ -48,11 +50,13 @@ impl AuthModule {
     pub async fn new(
         pool: Pool<Postgres>,
         session_store: Arc<dyn Store<Uuid, ActiveUser>>,
+        permissions: PermissionSet,
     ) -> Self {
         let app_state = AppState::new(pool.clone()).await;
         Self {
             state: web::Data::new(app_state),
             session_store,
+            permissions,
         }
     }
     pub fn config(&self, cfg: &mut ServiceConfig, namespace: &str) {
@@ -92,6 +96,13 @@ impl AuthModule {
                         .route(
                             "/change_password",
                             web::post().to(handlers::change_password),
+                        )
+                        .service(
+                            web::scope("/admin")
+                                .wrap(Permissions::<User>::new(self.permissions.clone()))
+                                .configure(|cfg| {
+                                    create_viewset(self.state.pool.clone()).configure(cfg, "users")
+                                }),
                         ),
                 )
                 .service(web::scope("/passwordless").configure(config));

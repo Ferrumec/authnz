@@ -14,6 +14,7 @@ use proxy::proxy;
 use sqlx::PgPool;
 use std::error::Error;
 use std::sync::Arc;
+use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 use uuid::Uuid;
 use viewset::DefaultCache;
 use viewset::Repository;
@@ -52,6 +53,10 @@ impl Principal for User {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
+        .init();
     let cache: Arc<dyn Store<Uuid, Session>> = Arc::new(DefaultCache::new(1000));
     let db_url = std::env::var("DATABASE_URL").expect("var DATABASE_URL not provided");
     let pool = PgPool::connect(&db_url)
@@ -60,8 +65,7 @@ async fn main() -> std::io::Result<()> {
     let session_repo: SessionRepo = SessionRepo::new(pool.clone(), cache.clone());
     let session_service = web::Data::new(SessionService::new(session_repo.clone()));
     let store = Arc::new(session_repo);
-    let authentication = Arc::new(AuthnModule::new(pool.clone(), store.clone()).await);
-    let authorization = Arc::new(AuthzModule::new(pool));
+
     let permissions = match PermissionSet::from_file("permissions.json") {
         Ok(r) => r,
         Err(e) => {
@@ -69,6 +73,11 @@ async fn main() -> std::io::Result<()> {
             panic!()
         }
     };
+
+    let authentication =
+        Arc::new(AuthnModule::new(pool.clone(), store.clone(), permissions.clone()).await);
+    let authorization = Arc::new(AuthzModule::new(pool));
+
     HttpServer::new(move || {
         // Create one awc client for this Actix worker.
         let client = Client::default();
