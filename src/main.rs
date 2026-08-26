@@ -9,7 +9,7 @@ use actixutils::middleware::{PermissionSet, Permissions, Principal, SessionMiddl
 use authn::Module as AuthnModule;
 use authz::Module as AuthzModule;
 use models::User;
-use proxy::{Proxy,proxy};
+use proxy::{Proxy, proxy};
 use sqlx::PgPool;
 use std::error::Error;
 use std::sync::Arc;

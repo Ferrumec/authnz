@@ -69,5 +69,5 @@ pub async fn proxy(
     body: web::Bytes,
     session: Session<User>,
 ) -> Result<HttpResponse, Error> {
-    state.call(req,body,session).await
+    state.call(req, body, session).await
 }

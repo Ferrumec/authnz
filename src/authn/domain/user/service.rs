@@ -21,6 +21,9 @@ use std::sync::Arc;
 use typed_eventbus::Publishable;
 use uuid::Uuid;
 use viewset::Repository;
+
+extern crate zxcvbn;
+use zxcvbn::zxcvbn;
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const MIN_PASSWORD_LEN: usize = 6;
@@ -97,7 +100,8 @@ impl UserService {
         if username.is_empty() || password.is_empty() {
             return Err(AuthError::MissingCredentials);
         }
-        if password.len() < MIN_PASSWORD_LEN {
+        let entropy = zxcvbn(password, &[]);
+        if entropy.score() < u8::try_into(3).unwrap() {
             return Err(AuthError::PasswordTooShort);
         }
 
@@ -111,7 +115,8 @@ impl UserService {
 
     /// Verify the current password, set a new one, and revoke all sessions.
     pub async fn change_password(&self, cmd: ChangePasswordCmd) -> Result<(), AuthError> {
-        if cmd.new_password.len() < MIN_PASSWORD_LEN {
+        let entropy = zxcvbn(&cmd.new_password, &[]);
+        if entropy.score() < u8::try_into(3).unwrap() {
             return Err(AuthError::PasswordTooShort);
         }
 
