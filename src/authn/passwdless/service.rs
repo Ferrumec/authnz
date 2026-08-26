@@ -1,6 +1,6 @@
 use crate::authn::{auth2::random_token, domain::user::UserService};
 use moka::future::Cache;
-use rand::random;
+use rand::Rng;
 use serde::Serialize;
 use std::time::Duration;
 use typed_eventbus::Publishable;
@@ -49,17 +49,14 @@ pub struct PasswdlessService {
     pub caches: Caches,
 }
 
-fn random_int(minimum: u32) -> u32 {
-    let mut number = 1;
-    while number < minimum {
-        number *= random::<u32>() + 1;
-    }
-    number
+fn random_otp() -> u32 {
+    let mut rng = rand::prelude::ThreadRng::default();
+    rng.gen_range(100000..999999)
 }
 
 async fn release_pair(email: Uuid, caches: &Caches) -> (u32, String) {
     let link = random_token();
-    let token = random_int(100000);
+    let token = random_otp();
     let fa2 = FA2Entry {
         link: link.clone(),
         token,
