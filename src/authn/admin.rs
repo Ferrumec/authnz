@@ -1,7 +1,6 @@
 use crate::models::User as ActiveUser;
 use actixutils::Store;
 use chrono::{DateTime, Utc};
-use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use std::sync::Arc;
@@ -25,7 +24,7 @@ pub struct User {
 #[derive(Serialize, Deserialize)]
 pub struct CreateUser {
     name: String,
-    email: Decimal,
+    email: String,
 }
 
 // `skip_serializing_if` is what makes PATCH semantics work: an omitted
