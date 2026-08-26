@@ -70,9 +70,6 @@ impl AuthModule {
                 // be registered here too, not just the `AuthService` slice of it.
                 .app_data(self.state.clone())
                 .service(username2userid)
-                .service(web::scope("/admin").configure(|cfg| {
-                    create_viewset(self.state.pool.clone()).configure(cfg, "users")
-                }))
                 .service(
                     web::scope("/auth")
                         .route("/register", web::post().to(handlers::register))
