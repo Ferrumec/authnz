@@ -8,9 +8,8 @@ use actixutils::Store;
 use actixutils::middleware::{PermissionSet, Permissions, Principal, SessionMiddleware};
 use authn::Module as AuthnModule;
 use authz::Module as AuthzModule;
-use awc::Client;
 use models::User;
-use proxy::proxy;
+use proxy::{Proxy,proxy};
 use sqlx::PgPool;
 use std::error::Error;
 use std::sync::Arc;
@@ -80,7 +79,7 @@ async fn main() -> std::io::Result<()> {
 
     HttpServer::new(move || {
         // Create one awc client for this Actix worker.
-        let client = Client::default();
+        let client = Proxy::new();
 
         App::new()
             .app_data(web::Data::new(client))

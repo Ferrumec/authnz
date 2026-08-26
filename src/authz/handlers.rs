@@ -36,7 +36,6 @@ fn admin_error_response(e: AdminError) -> HttpResponse {
     }
 }
 
-
 #[post("/admin/grant")]
 pub async fn admin_grant_permission(
     sess: Session<User>,

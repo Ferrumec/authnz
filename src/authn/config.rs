@@ -63,46 +63,45 @@ impl AuthModule {
         let session_middleware: SessionMiddleware<ActiveUser> =
             SessionMiddleware::required(self.session_store.clone());
         #[cfg_attr(not(feature = "passkey"), allow(unused_mut))]
-        let mut scope =
-            web::scope(namespace)
-                // `username2userid` and the `/passwordless` handlers extract
-                // `web::Data<AppState>` directly, so the shared state needs to
-                // be registered here too, not just the `AuthService` slice of it.
-                .app_data(self.state.clone())
-                .service(username2userid)
-                .service(
-                    web::scope("/auth")
-                        .route("/register", web::post().to(handlers::register))
-                        .route("/login/email", web::post().to(handlers::login))
-                        .route("/login/username", web::post().to(handlers::username_login))
-                        .route(
-                            "/request_password_reset",
-                            web::post().to(handlers::request_password_reset),
-                        )
-                        .route(
-                            "/confirm_password_reset",
-                            web::post().to(handlers::confirm_password_reset),
-                        ),
-                )
-                // 🔐 PROTECTED ROUTES
-                .service(
-                    web::scope("/me")
-                        .wrap(session_middleware)
-                        .route("/logout", web::post().to(handlers::logout))
-                        .route("/account", web::get().to(handlers::protected))
-                        .route(
-                            "/change_password",
-                            web::post().to(handlers::change_password),
-                        )
-                        .service(
-                            web::scope("/admin")
-                                .wrap(Permissions::<User>::new(self.permissions.clone()))
-                                .configure(|cfg| {
-                                    create_viewset(self.state.pool.clone()).configure(cfg, "users")
-                                }),
-                        ),
-                )
-                .service(web::scope("/passwordless").configure(config));
+        let mut scope = web::scope(namespace)
+            // `username2userid` and the `/passwordless` handlers extract
+            // `web::Data<AppState>` directly, so the shared state needs to
+            // be registered here too, not just the `AuthService` slice of it.
+            .app_data(self.state.clone())
+            .service(username2userid)
+            .service(
+                web::scope("/auth")
+                    .route("/register", web::post().to(handlers::register))
+                    .route("/login/email", web::post().to(handlers::login))
+                    .route("/login/username", web::post().to(handlers::username_login))
+                    .route(
+                        "/request_password_reset",
+                        web::post().to(handlers::request_password_reset),
+                    )
+                    .route(
+                        "/confirm_password_reset",
+                        web::post().to(handlers::confirm_password_reset),
+                    ),
+            )
+            // 🔐 PROTECTED ROUTES
+            .service(
+                web::scope("/me")
+                    .wrap(session_middleware)
+                    .route("/logout", web::post().to(handlers::logout))
+                    .route("/account", web::get().to(handlers::protected))
+                    .route(
+                        "/change_password",
+                        web::post().to(handlers::change_password),
+                    )
+                    .service(
+                        web::scope("/admin")
+                            .wrap(Permissions::<User>::new(self.permissions.clone()))
+                            .configure(|cfg| {
+                                create_viewset(self.state.pool.clone()).configure(cfg, "users")
+                            }),
+                    ),
+            )
+            .service(web::scope("/passwordless").configure(config));
 
         #[cfg(feature = "passkey")]
         {
