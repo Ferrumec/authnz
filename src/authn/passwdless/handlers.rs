@@ -8,8 +8,10 @@ use actix_web::{
     HttpResponse, Responder, ResponseError, get, post,
     web::{self, ServiceConfig},
 };
+use actixutils::locals::Context;
 use serde::Deserialize;
 use std::fmt::Display;
+use typed_eventbus::Event;
 
 fn translate_error(error: PasswdlessError) -> HttpResponse {
     match error {
@@ -51,25 +53,39 @@ struct Email {
 }
 
 #[post("/challenge/email")]
-async fn challenge1(data: web::Data<AppState>, email: web::Json<Email>) -> impl Responder {
+async fn challenge1(
+    data: web::Data<AppState>,
+    email: web::Json<Email>,
+    ctx: web::ReqData<Context>,
+) -> impl Responder {
     match data
         .passwdless_service
         .challenge_by_email(&email.email)
         .await
     {
-        Ok(_r) => HttpResponse::Created().finish(),
+        Ok(r) => {
+            ctx.publish(Event::new(r)).await;
+            HttpResponse::Created().finish()
+        }
         Err(e) => translate_error(e),
     }
 }
 
 #[get("/challenge/username/{username}")]
-async fn challenge2(data: web::Data<AppState>, username: web::Path<String>) -> impl Responder {
+async fn challenge2(
+    data: web::Data<AppState>,
+    username: web::Path<String>,
+    ctx: web::ReqData<Context>,
+) -> impl Responder {
     match data
         .passwdless_service
         .challenge_by_username(&username.into_inner())
         .await
     {
-        Ok(_r) => HttpResponse::Created().finish(),
+        Ok(r) => {
+            ctx.publish(Event::new(r)).await;
+            HttpResponse::Created().finish()
+        }
         Err(e) => translate_error(e),
     }
 }
