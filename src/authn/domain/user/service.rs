@@ -24,9 +24,6 @@ use viewset::Repository;
 
 extern crate zxcvbn;
 use zxcvbn::zxcvbn;
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const MIN_PASSWORD_LEN: usize = 6;
 
 #[derive(Serialize)]
 struct UserCreated {

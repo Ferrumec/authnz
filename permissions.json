@@ -1,0 +1,18 @@
+{
+   "permissions": [
+     { "method": "GET",    "url": "/authn/me/admin/users",       "bit_id": 100 },
+     { "method": "POST",   "url": "/authn/me/admin/users",       "bit_id": 101 },
+     { "method": "GET",    "url": "/authn/me/admin/users/{id}",  "bit_id": 102 },
+     { "method": "DELETE", "url": "/authn/me/admin/users/{id}",  "bit_id": 103 },
+     { "method": "PATCH",  "url": "/authn/me/admin/users/{id}",  "bit_id": 104 },
+
+     { "method": "POST", "url": "/authz/admin/deny",  "bit_id": 105 },
+     { "method": "POST", "url": "/authz/admin/grant", "bit_id": 106 },
+{ "method": "GET",    "url": "/authz/admin/absolutes",       "bit_id": 107 },
+     { "method": "POST",   "url": "/authz/admin/absolutes",       "bit_id": 108 },
+     { "method": "GET",    "url": "/authz/admin/absolutes/{id}",  "bit_id": 109 },
+     { "method": "DELETE", "url": "/authz/admin/absolutes/{id}",  "bit_id": 110 },
+     { "method": "PATCH",  "url": "/authz/admin/absolutes/{id}",  "bit_id": 111 }
+   ]
+}
+
