@@ -14,7 +14,7 @@ pub struct Absolute {
     #[entity(pk)]
     pub to_id: Uuid,
     /// Represent u128 permission bit map, represented as str since some db do not support u128
-    pub role: String,
+    pub role: Uuid,
 }
 
 pub type AbsoluteRepo = DefaultRepo<Absolute>;

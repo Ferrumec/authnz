@@ -2,7 +2,7 @@ use std::env;
 
 use crate::authz::{
     models::{AppState, PermissionReq},
-    services::AdminError,
+    //services::AdminError,
 };
 use crate::models::User;
 use actix_web::{HttpResponse, Responder, post, web};
@@ -20,20 +20,6 @@ struct PermissionView {
 struct PermView {
     name: String,
     value: i64,
-}
-
-/// Common handling for the Forbidden/Sqlx split every admin endpoint hits.
-fn admin_error_response(e: AdminError) -> HttpResponse {
-    match e {
-        AdminError::Forbidden => HttpResponse::Forbidden().json(json!({
-            "success": false,
-            "error": "not authorized as admin for this namespace"
-        })),
-        AdminError::Sqlx(e) => {
-            tracing::error!("Error in admin operation: {}", e);
-            HttpResponse::InternalServerError().finish()
-        }
-    }
 }
 
 #[post("/admin/grant")]
@@ -60,7 +46,7 @@ pub async fn admin_grant_permission(
             "success": false,
             "error": "invalid operation"
         })),
-        Err(e) => admin_error_response(e),
+        Err(_e) => HttpResponse::InternalServerError().finish(),
     }
 }
 
@@ -82,7 +68,7 @@ pub async fn admin_deny_permission(
         })),
         Ok(None) => HttpResponse::NotAcceptable()
             .body("Error in denying permission, please confirm that the permission was granted"),
-        Err(e) => admin_error_response(e),
+        Err(_e) => HttpResponse::InternalServerError().finish(),
     }
 }
 

@@ -5,34 +5,6 @@ use std::sync::Arc;
 use uuid::Uuid;
 use viewset::Repository;
 
-pub enum GetTokenError {
-    Sqlx(SqlxError),
-}
-
-impl From<SqlxError> for GetTokenError {
-    fn from(value: SqlxError) -> Self {
-        GetTokenError::Sqlx(value)
-    }
-}
-
-fn parse_role(s: String) -> Result<u128, SqlxError> {
-    s.parse()
-        .map_err(|_| SqlxError::Decode("invalid role bitmask".into()))
-}
-
-#[derive(Debug)]
-pub enum AdminError {
-    Sqlx(SqlxError),
-    /// The caller's token is not a super-admin token scoped to this namespace.
-    Forbidden,
-}
-
-impl From<SqlxError> for AdminError {
-    fn from(value: SqlxError) -> Self {
-        AdminError::Sqlx(value)
-    }
-}
-
 #[derive(Clone)]
 pub struct Service {
     pub db: Pool<Postgres>,
@@ -42,7 +14,7 @@ pub struct Service {
 impl Service {
     pub async fn get_role(&self, to_id: &Uuid) -> Result<u128, SqlxError> {
         match self.absolute_repo.retrieve(to_id).await {
-            Ok(grant) => Ok(parse_role(grant.role)?),
+            Ok(grant) => Ok(grant.role.as_u128()),
             Err(_) => Ok(0),
         }
     }
@@ -120,7 +92,7 @@ impl Service {
     pub async fn admin_grant_permission(
         &self,
         request: PermissionReq,
-    ) -> Result<Option<u128>, AdminError> {
+    ) -> Result<Option<u128>, SqlxError> {
         Ok(self.admin_grant_unchecked(request).await?)
     }
 
@@ -129,7 +101,7 @@ impl Service {
     pub async fn admin_deny_permission(
         &self,
         request: PermissionReq,
-    ) -> Result<Option<u128>, AdminError> {
+    ) -> Result<Option<u128>, SqlxError> {
         Ok(self.admin_deny_unchecked(request).await?)
     }
 }
