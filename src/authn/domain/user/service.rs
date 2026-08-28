@@ -93,7 +93,12 @@ impl UserService {
     /// Hash the password and create a new user row.
     ///
     /// Returns the new user's ID so callers can optionally auto-login.
-    pub async fn register(&self, username: &str, password: &str) -> Result<(), AuthError> {
+    pub async fn register(
+        &self,
+        username: &str,
+        email: &str,
+        password: &str,
+    ) -> Result<(), AuthError> {
         if username.is_empty() || password.is_empty() {
             return Err(AuthError::MissingCredentials);
         }
@@ -103,7 +108,7 @@ impl UserService {
         }
 
         let hash = bcrypt::hash(password, 10)?;
-        let _user = self.create_user(username, &hash).await?;
+        let _user = self.create_user(username, email, &hash).await?;
 
         Ok(())
     }
@@ -279,14 +284,18 @@ impl UserService {
             .map_err(|_| AuthError::UserNotFound)
     }
 
-    async fn create_user(&self, username: &str, password_hash: &str) -> Result<User, AuthError> {
-        let id = Uuid::new_v4().to_string();
+    async fn create_user(
+        &self,
+        username: &str,
+        email: &str,
+        password_hash: &str,
+    ) -> Result<User, AuthError> {
         let now = Utc::now();
 
         sqlx::query_as!(
             User,
             r#"
-            INSERT INTO users (id, username, password_hash, created_at, updated_at)
+            INSERT INTO users ( username, email, password_hash, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING
                 id          as "id!: Uuid",
@@ -296,8 +305,8 @@ impl UserService {
                 created_at  as "created_at!: chrono::DateTime<chrono::Utc>",
                 updated_at  as "updated_at!: chrono::DateTime<chrono::Utc>"
             "#,
-            id,
             username,
+            email,
             password_hash,
             now,
             now

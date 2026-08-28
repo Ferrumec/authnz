@@ -1,9 +1,16 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use validator::Validate;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct RegisterRequest {
+    #[validate(length(min = 3, max = 30))]
     pub username: String,
+
+    #[validate(email)]
+    pub email: String,
+
+    #[validate(length(min = 8))]
     pub password: String,
 }
 

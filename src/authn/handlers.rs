@@ -16,6 +16,7 @@ use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{HttpRequest, HttpResponse, Responder, web};
 use actixutils::Session;
 use uuid::Uuid;
+use validator::Validate;
 
 // ── Error → HTTP ──────────────────────────────────────────────────────────────
 
@@ -59,7 +60,11 @@ pub async fn register(
     svc: web::Data<UserService>,
     req: web::Json<RegisterRequest>,
 ) -> impl Responder {
-    match svc.register(&req.username, &req.password).await {
+    let req = req.into_inner();
+    if let Err(e) = req.validate() {
+        return HttpResponse::BadRequest().body(format!("Invalid request: {e}"));
+    }
+    match svc.register(&req.username, &req.email, &req.password).await {
         Ok(res) => {
             HttpResponse::Created().json(ApiResponse::success(res, "User registered successfully"))
         }
