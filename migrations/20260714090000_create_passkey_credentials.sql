@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS passkey_credentials (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
     credential_id TEXT UNIQUE NOT NULL,
     passkey_data TEXT NOT NULL,
     label TEXT,

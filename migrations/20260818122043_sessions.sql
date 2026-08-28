@@ -3,7 +3,7 @@ CREATE TYPE session_status AS ENUM ('active', 'revoked', 'expired');
 
 CREATE TABLE sessions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL, -- changed from BIGINT
+    sub UUID NOT NULL,
     
     -- Device info
     device_name TEXT NOT NULL, -- "Chrome on Windows", "iPhone App"
@@ -23,7 +23,7 @@ CREATE TABLE sessions (
 );
 
 -- Indexes
-CREATE INDEX idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX idx_sessions_user_id ON sessions(sub);
 CREATE INDEX idx_sessions_status ON sessions(status);
 CREATE INDEX idx_sessions_expires_at ON sessions(expires_at) WHERE status = 'active';
 CREATE INDEX idx_sessions_last_seen ON sessions(last_seen_at DESC);
@@ -42,12 +42,3 @@ BEFORE UPDATE ON sessions
 FOR EACH ROW
 EXECUTE FUNCTION touch_last_seen();
 
--- Down
-DROP TRIGGER IF EXISTS trigger_touch_last_seen ON sessions;
-DROP FUNCTION IF EXISTS touch_last_seen();
-DROP INDEX IF EXISTS idx_sessions_last_seen;
-DROP INDEX IF EXISTS idx_sessions_expires_at;
-DROP INDEX IF EXISTS idx_sessions_status;
-DROP INDEX IF EXISTS idx_sessions_user_id;
-DROP TABLE IF EXISTS sessions;
-DROP TYPE IF EXISTS session_status;
