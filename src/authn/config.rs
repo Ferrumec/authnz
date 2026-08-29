@@ -7,8 +7,8 @@ use crate::models::User;
 use actix_web::web::{self, ServiceConfig};
 use actixutils::Store;
 use actixutils::middleware::{PermissionSet, Permissions, SessionMiddleware};
-use sqlx::{Error, Pool, Postgres};
-use std::{env::VarError, sync::Arc};
+use sqlx::{Pool, Postgres};
+use std::sync::Arc;
 use uuid::Uuid;
 use viewset::ViewSet;
 
@@ -17,33 +17,6 @@ pub struct AuthModule {
     state: web::Data<AppState>,
     session_store: Arc<dyn Store<Uuid, ActiveUser>>,
     permissions: PermissionSet,
-}
-
-#[derive(Debug)]
-pub enum SetupError {
-    Db(Error),
-    Var(VarError),
-}
-
-impl ToString for SetupError {
-    fn to_string(&self) -> String {
-        match self {
-            SetupError::Db(error) => error.to_string(),
-            SetupError::Var(var_error) => var_error.to_string(),
-        }
-    }
-}
-
-impl From<VarError> for SetupError {
-    fn from(value: VarError) -> Self {
-        SetupError::Var(value)
-    }
-}
-
-impl From<Error> for SetupError {
-    fn from(value: Error) -> Self {
-        SetupError::Db(value)
-    }
 }
 
 impl AuthModule {

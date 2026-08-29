@@ -22,25 +22,16 @@ use validator::Validate;
 
 pub fn auth_error_to_response(e: AuthError) -> HttpResponse {
     match e {
-        AuthError::MissingCredentials
-        | AuthError::PasswordTooShort
-        | AuthError::MissingRefreshToken => {
+        AuthError::MissingCredentials | AuthError::PasswordTooShort => {
             HttpResponse::BadRequest().json(ApiResponse::<()>::error(&e.to_string()))
         }
-        AuthError::InvalidCredentials
-        | AuthError::RefreshTokenNotFound
-        | AuthError::RefreshTokenExpired
-        | AuthError::InvalidToken
-        | AuthError::UserNotFound => {
+        AuthError::InvalidCredentials | AuthError::InvalidToken | AuthError::UserNotFound => {
             HttpResponse::Unauthorized().json(ApiResponse::<()>::error(&e.to_string()))
         }
         AuthError::UserAlreadyExists => {
             HttpResponse::Conflict().json(ApiResponse::<()>::error(&e.to_string()))
         }
-        AuthError::Database(_)
-        | AuthError::Bcrypt(_)
-        | AuthError::TokenSigning(_)
-        | AuthError::Cache => {
+        AuthError::Database(_) | AuthError::Bcrypt(_) | AuthError::Cache => {
             tracing::error!("Internal auth error: {:?}", e);
             HttpResponse::InternalServerError().finish()
         }

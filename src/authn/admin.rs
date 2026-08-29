@@ -129,7 +129,6 @@ pub fn admin_session_viewset(db: SessionRepo) -> Arc<AdminSessionViewSet> {
     Arc::new(service.into())
 }
 
-
 pub type UserRepository = DefaultRepo<User>;
 
 pub struct UserService {

@@ -12,18 +12,9 @@ pub enum AuthError {
     #[error("Password must be at least 6 characters")]
     PasswordTooShort,
 
-    #[error("Refresh token is required")]
-    MissingRefreshToken,
-
     // ── Auth failures ─────────────────────────────────────────────────
     #[error("Invalid credentials")]
     InvalidCredentials,
-
-    #[error("Refresh token not found or revoked")]
-    RefreshTokenNotFound,
-
-    #[error("Refresh token expired")]
-    RefreshTokenExpired,
 
     #[error("Invalid or expired token")]
     InvalidToken,
@@ -41,9 +32,6 @@ pub enum AuthError {
 
     #[error("Password hashing failed")]
     Bcrypt(#[from] bcrypt::BcryptError),
-
-    #[error("Token signing failed: {0}")]
-    TokenSigning(String),
 
     #[error("Cache failed")]
     Cache,

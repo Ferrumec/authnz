@@ -126,7 +126,7 @@ impl PasswdlessService {
 }
 
 #[derive(Serialize)]
-pub(super) struct ChallengeRequested {
+pub struct ChallengeRequested {
     token: u32,
     link: String,
 }

@@ -7,20 +7,8 @@ use crate::authz::{
 use crate::models::User;
 use actix_web::{HttpResponse, Responder, post, web};
 use actixutils::Session;
-use serde::Serialize;
 use serde_json::json;
 use uuid::Uuid;
-
-#[derive(Serialize)]
-struct PermissionView {
-    name: String,
-}
-
-#[derive(Serialize)]
-struct PermView {
-    name: String,
-    value: i64,
-}
 
 #[post("/admin/grant")]
 pub async fn admin_grant_permission(
