@@ -161,11 +161,9 @@ impl UserService {
         let raw = generate_raw_token();
         let hash = hash_token(&raw);
         let expires_at = Utc::now() + chrono::Duration::minutes(30);
-        let id = Uuid::new_v4();
 
         let _ = sqlx::query!(
-            "INSERT INTO password_resets (id, user_id, token_hash, expires_at) VALUES ($1, $2, $3, $4)",
-            id,
+            "INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES ($1, $2, $3)",
             user_id,
             hash,
             expires_at
