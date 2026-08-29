@@ -15,7 +15,7 @@ impl Service {
     pub async fn get_role(&self, to_id: &Uuid) -> Result<u128, SqlxError> {
         match self.absolute_repo.retrieve(to_id).await {
             Ok(grant) => Ok(grant.role.as_u128()),
-            Err(_) => Ok(0),
+            Err(_e) => Err(SqlxError::RowNotFound),
         }
     }
 

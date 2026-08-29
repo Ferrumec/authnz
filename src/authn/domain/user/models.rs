@@ -47,7 +47,7 @@ pub struct User {
 /// A row from the `password_resets` table.
 #[derive(sqlx::FromRow)]
 pub struct PasswordReset {
-    pub id: String,
+    pub id: Uuid,
     pub user_id: Uuid,
     pub expires_at: DateTime<Utc>,
     pub used: bool,

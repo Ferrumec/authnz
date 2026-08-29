@@ -14,7 +14,7 @@ pub async fn username2userid(
         .await;
 
     match result {
-        Ok(Some(id)) => HttpResponse::Ok().body(id),
+        Ok(Some(id)) => HttpResponse::Ok().body(id.to_string()),
         Ok(None) => HttpResponse::NotFound().finish(),
         Err(_) => HttpResponse::NotFound().finish(),
     }

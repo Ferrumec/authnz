@@ -33,7 +33,10 @@ pub fn hash_token(raw: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use crate::authn::*;
+    use crate::authn::{
+        domain::user::token::{generate_raw_token, hash_token},
+        *,
+    };
 
     #[test]
     fn raw_token_has_expected_length() {

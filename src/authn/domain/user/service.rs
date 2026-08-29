@@ -134,7 +134,7 @@ impl UserService {
         sqlx::query!(
             "UPDATE users SET password_hash = $1 WHERE id = $2",
             new_hash,
-            cmd.user_id.to_string()
+            cmd.user_id
         )
         .execute(&self.pool)
         .await?;
@@ -147,7 +147,7 @@ impl UserService {
     /// user is not found (prevents email enumeration).
     pub async fn request_password_reset(&self, cmd: RequestPasswordResetCmd) {
         // Look up by email column in the `emails` table.
-        let user_id: Option<String> =
+        let user_id: Option<Uuid> =
             sqlx::query_scalar!("SELECT id FROM users WHERE email = $1", cmd.email)
                 .fetch_optional(&self.pool)
                 .await
@@ -161,7 +161,7 @@ impl UserService {
         let raw = generate_raw_token();
         let hash = hash_token(&raw);
         let expires_at = Utc::now() + chrono::Duration::minutes(30);
-        let id = Uuid::new_v4().to_string();
+        let id = Uuid::new_v4();
 
         let _ = sqlx::query!(
             "INSERT INTO password_resets (id, user_id, token_hash, expires_at) VALUES ($1, $2, $3, $4)",
@@ -190,10 +190,10 @@ impl UserService {
             PasswordReset,
             r#"
             SELECT
-                id          as "id!",
+                id          as "id!: Uuid",
                 user_id     as "user_id!: Uuid",
                 expires_at  as "expires_at!: chrono::DateTime<chrono::Utc>",
-                used        as "used!" 
+                used        as "used!: bool" 
             FROM password_resets
             WHERE token_hash = $1 AND used = FALSE
             "#,
@@ -214,7 +214,7 @@ impl UserService {
             "UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3",
             new_hash,
             now,
-            reset.user_id.to_string()
+            reset.user_id
         )
         .execute(&mut *tx)
         .await?;

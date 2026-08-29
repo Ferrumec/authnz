@@ -92,6 +92,44 @@ impl Repository for SessionRepo {
     }
 }
 
+pub struct SessionService {
+    repo: SessionRepo,
+}
+
+impl SessionService {
+    fn new(repo: SessionRepo) -> Self {
+        Self { repo }
+    }
+}
+
+#[async_trait::async_trait]
+impl Service for SessionService {
+    type Repository = SessionRepo;
+
+    fn repository(&self) -> &Self::Repository {
+        &self.repo
+    }
+
+    // Only override the one hook we actually need.
+    async fn before_create(
+        &self,
+        _tx: &mut Transaction<'_, Postgres>,
+        _dto: crate::models::User,
+    ) -> Result<crate::models::User, ApiError> {
+        return Err(ApiError::Validation(
+            "manual create not allowed, use login endpoint".into(),
+        ));
+    }
+}
+
+pub type AdminSessionViewSet = DefaultViewSet<SessionService>;
+
+pub fn admin_session_viewset(db: SessionRepo) -> Arc<AdminSessionViewSet> {
+    let service = SessionService::new(db);
+    Arc::new(service.into())
+}
+
+
 pub type UserRepository = DefaultRepo<User>;
 
 pub struct UserService {
