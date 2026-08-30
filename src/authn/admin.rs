@@ -58,7 +58,7 @@ impl From<User> for UserDto {
 }
 
 #[derive(Entity, FromRow, Serialize, Clone, Deserialize)]
-#[entity(table = "sessions", create = "ActiveUser", update = "ActiveUser")]
+#[entity(table = "sessions", create = "ActiveUser")]
 pub struct Session {
     pub id: Uuid,
     #[entity(sortable)]
@@ -66,7 +66,7 @@ pub struct Session {
     pub sub: Uuid,
     pub username: String,
     pub email: String,
-    pub role: String,
+    pub role: Uuid,
     pub expires_at: DateTime<Utc>,
     pub ip_address: IpAddr,
 }

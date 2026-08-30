@@ -39,7 +39,7 @@ use futures_util::future::LocalBoxFuture;
 use std::{
     future::{Ready, ready},
     rc::Rc,
-    sync::{Arc, atomic::Ordering},
+    sync::Arc,
     task::{Context, Poll},
 };
 use uuid::Uuid;

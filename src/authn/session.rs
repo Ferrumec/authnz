@@ -8,6 +8,7 @@
 use actix_web::{Error, FromRequest, HttpMessage, HttpRequest, dev::Payload, error};
 use std::{
     future::{Ready, ready},
+    net::{IpAddr, Ipv4Addr},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -85,4 +86,27 @@ impl<T: Send + Sync + 'static> FromRequest for Session<T> {
             }
         }
     }
+}
+
+pub struct SessionParams {
+    pub ip_address: IpAddr,
+    pub user_agent: String,
+}
+
+impl FromRequest for SessionParams {
+    type Error = Error;
+    fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
+        ready(Ok(Self {
+            ip_address: req.peer_addr().unwrap().ip(),
+            user_agent: req
+                .headers()
+                .get("User-Agent")
+                .and_then(|v| Some(v.to_str()))
+                .unwrap_or(Ok("unknown"))
+                .unwrap_or("unknown")
+                .to_string(),
+        }))
+    }
+
+    type Future = Ready<Result<Self, Error>>;
 }

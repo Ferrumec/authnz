@@ -1,6 +1,7 @@
 use crate::authn::domain::SessionService;
 use crate::authn::domain::user::UserService;
 use crate::authn::handlers::session_cookie;
+use crate::authn::session::SessionParams;
 use crate::authn::{auth2::AppState, passwdless::PasswdlessError};
 use crate::authz::Service as AuthzService;
 use crate::models::User;
@@ -97,6 +98,7 @@ async fn confirm(
     svc: web::Data<UserService>,
     sess: web::Data<SessionService>,
     authz: web::Data<AuthzService>,
+    params: SessionParams,
 ) -> impl Responder {
     let token = token.into_inner();
     let user_id = match data.passwdless_service.confirm_link(token).await {
@@ -113,7 +115,7 @@ async fn confirm(
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
     let user = User::new(user, role);
-    let sess_id = match sess.issue_session(user).await {
+    let sess_id = match sess.issue_session(user, params).await {
         Ok(sess_id) => sess_id,
         Err(_e) => return HttpResponse::InternalServerError().finish(),
     };
@@ -128,6 +130,7 @@ async fn confirm_token(
     svc: web::Data<UserService>,
     sess: web::Data<SessionService>,
     authz: web::Data<AuthzService>,
+    params: SessionParams,
 ) -> impl Responder {
     let token = token.into_inner();
     let user_id = match data.passwdless_service.confirm_token(token.token).await {
@@ -146,7 +149,7 @@ async fn confirm_token(
     };
     let user = User::new(user, role);
 
-    let sess_id = match sess.issue_session(user).await {
+    let sess_id = match sess.issue_session(user, params).await {
         Ok(sess_id) => sess_id,
         Err(_e) => return HttpResponse::InternalServerError().finish(),
     };

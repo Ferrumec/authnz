@@ -10,6 +10,7 @@ use crate::authn::models::{
     ApiResponse, ChangePasswordRequest, LoginRequest, PasswordResetConfirmRequest,
     PasswordResetRequest, RegisterRequest,
 };
+use crate::authn::session::SessionParams;
 use crate::authz::Service as AuthzService;
 use crate::models::User;
 use actix_web::cookie::{Cookie, SameSite};
@@ -68,6 +69,7 @@ pub async fn login(
     sess: web::Data<SessionService>,
     req: web::Json<LoginRequest>,
     authz: web::Data<AuthzService>,
+    params: SessionParams,
 ) -> impl Responder {
     let cmd = PasswordLoginCmd {
         username: req.identifier.clone(),
@@ -85,7 +87,7 @@ pub async fn login(
     };
     let user = User::new(user, role);
 
-    let sess_id = match sess.issue_session(user).await {
+    let sess_id = match sess.issue_session(user, params).await {
         Ok(sess_id) => sess_id,
         Err(e) => return auth_error_to_response(e),
     };
@@ -98,6 +100,7 @@ pub async fn username_login(
     req: web::Json<LoginRequest>,
     sess: web::Data<SessionService>,
     authz: web::Data<AuthzService>,
+    params: SessionParams,
 ) -> impl Responder {
     let cmd = PasswordLoginCmd {
         username: req.identifier.clone(),
@@ -115,7 +118,7 @@ pub async fn username_login(
     };
     let user = User::new(user, role);
 
-    let sess_id = match sess.issue_session(user).await {
+    let sess_id = match sess.issue_session(user, params).await {
         Ok(sess_id) => sess_id,
         Err(e) => return auth_error_to_response(e),
     };

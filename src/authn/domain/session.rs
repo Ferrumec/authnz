@@ -11,9 +11,9 @@
 //! i.e. the same Moka/Redis layer as the existing session middleware).
 //! Sessions use sliding expiration: every successful `validate` call
 //! extends the TTL.
-use crate::SessionRepo;
 use crate::authn::domain::user::errors::AuthError;
 use crate::models::User;
+use crate::{SessionRepo, authn::session::SessionParams};
 use uuid::Uuid;
 use viewset::{ApiError, Repository};
 // ── SessionService ────────────────────────────────────────────────────────────
@@ -43,8 +43,14 @@ impl SessionService {
         Self { store }
     }
 
-    pub async fn issue_session(&self, user: User) -> Result<Uuid, AuthError> {
-        let session = self.store.create(&user).await?;
+    pub async fn issue_session(
+        &self,
+        user: User,
+        params: SessionParams,
+    ) -> Result<Uuid, AuthError> {
+        let mut session = self.store.create(&user).await?;
+        session.ip_address = params.ip_address;
+        self.store.update(&session.id, &session).await?;
         Ok(session.id)
     }
 

@@ -27,11 +27,13 @@ impl Store<Uuid, User> for SessionRepo {
             sub: session.sub,
             email: session.email,
             username: session.username,
-            role: session.role.parse().unwrap(),
+            role: session.role.as_u128(),
             expires_at: session.expires_at,
         }))
     }
-    async fn set(&self, id: &Uuid, value: User) -> Result<(), Box<dyn Error>> {
+    async fn set(&self, id: &Uuid, _value: User) -> Result<(), Box<dyn Error>> {
+        let mut value = self.retrieve(id).await?;
+        value.role = Uuid::from_u128(_value.role);
         self.update(id, &value).await?;
         Ok(())
     }
