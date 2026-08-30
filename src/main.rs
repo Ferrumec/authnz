@@ -2,10 +2,11 @@ mod authn;
 mod authz;
 mod models;
 mod proxy;
+use crate::authn::SessionMiddleware;
 use crate::authn::{Session, SessionRepo, SessionService};
 use actix_web::{App, HttpServer, web};
 use actixutils::Store;
-use actixutils::middleware::{PermissionSet, Permissions, Principal, SessionMiddleware};
+use actixutils::middleware::{PermissionSet, Permissions, Principal};
 use authn::Module as AuthnModule;
 use authz::Module as AuthzModule;
 use models::User;
@@ -27,12 +28,11 @@ impl Store<Uuid, User> for SessionRepo {
             email: session.email,
             username: session.username,
             role: session.role.parse().unwrap(),
+            expires_at: session.expires_at,
         }))
     }
-    async fn set(&self, _id: &Uuid, _value: User) -> Result<(), Box<dyn Error>> {
-        // This session store is meant to be used session middleware
-        // which we don't expect to be minting sessions
-        //self.create(&value).await?;
+    async fn set(&self, id: &Uuid, value: User) -> Result<(), Box<dyn Error>> {
+        self.update(id, &value).await?;
         Ok(())
     }
     async fn delete(&self, id: &Uuid) -> Result<(), Box<dyn Error>> {
@@ -88,7 +88,7 @@ async fn main() -> std::io::Result<()> {
             .service(
                 web::scope("")
                     .wrap(Permissions::<User>::new(permissions.clone()))
-                    .wrap(SessionMiddleware::required(store.clone()))
+                    .wrap(SessionMiddleware::new(store.clone()))
                     .configure(|cfg| authorization.clone().config(cfg, "authz"))
                     .default_service(web::route().to(proxy)),
             )

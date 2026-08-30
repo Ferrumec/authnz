@@ -3,7 +3,7 @@ use actixutils::Store;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
-use std::sync::Arc;
+use std::{net::IpAddr, sync::Arc};
 use uuid::Uuid;
 use viewset::{ApiError, DefaultRepo, DefaultViewSet, Entity, Repository, Service};
 
@@ -58,7 +58,7 @@ impl From<User> for UserDto {
 }
 
 #[derive(Entity, FromRow, Serialize, Clone, Deserialize)]
-#[entity(table = "sessions", create = "ActiveUser")]
+#[entity(table = "sessions", create = "ActiveUser", update = "ActiveUser")]
 pub struct Session {
     pub id: Uuid,
     #[entity(sortable)]
@@ -67,6 +67,8 @@ pub struct Session {
     pub username: String,
     pub email: String,
     pub role: String,
+    pub expires_at: DateTime<Utc>,
+    pub ip_address: IpAddr,
 }
 
 #[derive(Clone)]

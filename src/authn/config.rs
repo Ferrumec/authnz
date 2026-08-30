@@ -1,3 +1,4 @@
+use super::SessionMiddleware;
 use crate::authn::admin::create_viewset;
 #[cfg(feature = "passkey")]
 use crate::authn::passkey;
@@ -6,7 +7,7 @@ use crate::models::User as ActiveUser;
 use crate::models::User;
 use actix_web::web::{self, ServiceConfig};
 use actixutils::Store;
-use actixutils::middleware::{PermissionSet, Permissions, SessionMiddleware};
+use actixutils::middleware::{PermissionSet, Permissions};
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -34,7 +35,7 @@ impl AuthModule {
     }
     pub fn config(&self, cfg: &mut ServiceConfig, namespace: &str) {
         let session_middleware: SessionMiddleware<ActiveUser> =
-            SessionMiddleware::required(self.session_store.clone());
+            SessionMiddleware::new(self.session_store.clone());
         #[cfg_attr(not(feature = "passkey"), allow(unused_mut))]
         let mut scope = web::scope(namespace)
             // `username2userid` and the `/passwordless` handlers extract

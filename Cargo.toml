@@ -8,7 +8,7 @@ actix-web = "4.4"
 serde = { version = "1", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
 bcrypt = "0.15"
-sqlx = { version = "0.9", features = ["postgres", "runtime-tokio","tls-native-tls", "chrono", "migrate", "uuid"] }
+sqlx = { version = "0.9", features = ["postgres", "runtime-tokio", "tls-native-tls", "chrono", "migrate", "uuid", "ipnetwork"] }
 thiserror = "1.0"
 uuid = { version = "1.7", features = ["v4", "serde"] }
 rand = "0.8"
@@ -29,6 +29,9 @@ awc = "3.8.2"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 zxcvbn = "3.1.1"
 validator = { version = "0.20.0", features = ["derive"] }
+tokio = { version = "1.53.1", features = ["sync"] }
+futures-util = "0.3.34"
+
 
 [features]
 passkey = ["webauthn-rs"]

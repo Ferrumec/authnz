@@ -1,4 +1,5 @@
 use crate::authn::User as CoreUser;
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -8,6 +9,7 @@ pub struct User {
     pub username: String,
     pub email: String,
     pub role: u128,
+    pub expires_at: DateTime<Utc>,
 }
 
 impl User {
@@ -17,6 +19,7 @@ impl User {
             username: user.username,
             email: user.email,
             sub: user.id,
+            expires_at: Utc::now() + Duration::minutes(30),
         }
     }
 }
