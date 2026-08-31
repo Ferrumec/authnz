@@ -1,8 +1,6 @@
 use crate::authn::domain::user::{UserService, token::generate_raw_token};
 use crate::authn::passwdless::PasswdlessService;
 use sqlx::Pool;
-use std::sync::Arc;
-use viewset::DefaultCache;
 
 pub struct AppState {
     pub pool: Pool<sqlx::Postgres>,

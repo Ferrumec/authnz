@@ -150,7 +150,7 @@ where
             let session = Arc::new(session);
             req.extensions_mut().insert(session.clone());
 
-            let mut res = service.call(req).await?;
+            let res = service.call(req).await?;
 
             // Only save if dirty
             if session.is_dirty() {
@@ -158,18 +158,7 @@ where
                 store.set(&session_id, session_data.clone()).await?;
                 session.set_clean(); // reset flag
             }
-
-            // Refresh cookie attributes on every response for security
-            use actix_web::cookie::{Cookie, SameSite};
-            let cookie = Cookie::build(cookie_name, session_id.to_string())
-                .path("/")
-                .http_only(true)
-                .secure(true)
-                .same_site(SameSite::Strict)
-                .finish();
-            res.response_mut()
-                .add_cookie(&cookie)
-                .map_err(error::ErrorInternalServerError)?;
+            
             Ok(res)
         })
     }
