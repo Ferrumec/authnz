@@ -71,4 +71,22 @@ impl SessionService {
         }
         Ok(())
     }
+
+    // ── Bulk revoke ──────────────────────────────────────────────────────────
+
+    /// Revoke every session belonging to `user_id`. Used after a password
+    /// change or reset so that any session issued under the old
+    /// credentials — including a stolen one the user doesn't know about —
+    /// can't outlive the credential rotation. Individual deletion failures
+    /// are logged and skipped rather than aborting the whole revoke, so one
+    /// bad row can't leave the rest of the user's sessions alive.
+    pub async fn revoke_all_for_user(&self, user_id: &Uuid) -> Result<(), AuthError> {
+        let session_ids = self.store.session_ids_for_user(user_id).await?;
+        for id in session_ids {
+            if let Err(e) = self.store.delete(&id).await {
+                tracing::error!("failed to revoke session {id} for user {user_id}: {e}");
+            }
+        }
+        Ok(())
+    }
 }

@@ -2,6 +2,13 @@ use crate::models::User;
 use actix_web::{Error, HttpRequest, HttpResponse, http::header, web};
 use actixutils::Session;
 use awc::Client;
+
+/// Identity headers this proxy asserts on the authenticated user's behalf.
+/// A client-supplied header of the same name must never reach upstream —
+/// otherwise an unauthenticated or under-privileged caller could spoof
+/// another user's identity by simply setting these on their request.
+const TRUSTED_IDENTITY_HEADERS: [&str; 3] = ["x-user-id", "x-user-email", "x-user-name"];
+
 pub struct Proxy {
     client: Client,
     upstream: String,
@@ -32,11 +39,20 @@ impl Proxy {
         let mut upstream_req = self.client.request(req.method().clone(), url);
 
         for (name, value) in req.headers() {
-            if name != header::HOST {
-                upstream_req = upstream_req.insert_header((name.clone(), value.clone()));
+            if name == header::HOST {
+                continue;
             }
+            // Strip any client-supplied copy of the headers we're about to
+            // assert ourselves below — never forward an incoming
+            // X-User-Id/-Email/-Name as-is.
+            if TRUSTED_IDENTITY_HEADERS.contains(&name.as_str().to_ascii_lowercase().as_str()) {
+                continue;
+            }
+            upstream_req = upstream_req.insert_header((name.clone(), value.clone()));
         }
 
+        // Overwrite with the identity from the authenticated session —
+        // the only source of truth for who the caller is.
         let mut upstream_res = upstream_req
             .insert_header(("X-User-Id", user.sub.to_string()))
             .insert_header(("X-User-Email", user.email.clone()))

@@ -46,10 +46,9 @@ use uuid::Uuid;
 
 /// Middleware factory for cookie-based session storage.
 ///
-/// Construct with [`SessionMiddleware::new`] (missing/invalid session cookies fall
-/// back to a fresh default session) or [`SessionMiddleware::required`] (missing/invalid
-/// cookies are rejected with `401 Unauthorized`). Customise the cookie name with
-/// [`cookie_name`](Self::cookie_name).
+/// Construct with [`SessionMiddleware::new`]. Missing, invalid, or expired
+/// session cookies are rejected with `401 Unauthorized`. Customise the cookie
+/// name with [`cookie_name`](Self::cookie_name).
 pub struct SessionMiddleware<S> {
     store: Arc<dyn Store<Uuid, S>>,
     cookie_name: String,
@@ -58,9 +57,9 @@ pub struct SessionMiddleware<S> {
 impl SessionMiddleware<Sess> {
     /// Create a `SessionMiddleware` backed by `store`.
     ///
-    /// A request with no session cookie, or one that fails to parse as a `Uuid`, is
-    /// given a fresh default session (a new cookie is issued on the response) rather
-    /// than being rejected. The cookie name defaults to `"session"`.
+    /// A request with no session cookie, an invalid `Uuid`, a missing store
+    /// entry, or an expired session is rejected with `401 Unauthorized`.
+    /// The cookie name defaults to `"session"`.
     pub fn new(store: Arc<dyn Store<Uuid, Sess>>) -> Self {
         Self {
             store,
@@ -102,7 +101,7 @@ pub struct SessionMiddlewareService<R, S> {
     cookie_name: String,
 }
 
-impl<S, B, Sess: Default + Clone + 'static> Service<ServiceRequest>
+impl<S, B> Service<ServiceRequest>
     for SessionMiddlewareService<S, Sess>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
@@ -122,18 +121,26 @@ where
         let cookie_name = self.cookie_name.clone();
         let service = self.service.clone();
         Box::pin(async move {
-            let (session_id, session, new_session) = match req.cookie(&cookie_name) {
+            let (session_id, session) = match req.cookie(&cookie_name) {
                 Some(cookie) => {
-                    let new_session = false;
                     let id = match Uuid::parse_str(cookie.value()) {
                         Ok(id) => id,
                         Err(_) => {
                             return Err(error::ErrorUnauthorized("no session"));
                         }
                     };
-                    let session_data = store.get(&id).await?.unwrap_or_default();
+                    let session_data = match store.get(&id).await? {
+                        Some(data) => data,
+                        None => {
+                            return Err(error::ErrorUnauthorized("no session"));
+                        }
+                    };
+                    // Reject expired sessions
+                    if session_data.expires_at < chrono::Utc::now() {
+                        return Err(error::ErrorUnauthorized("session expired"));
+                    }
                     req.extensions_mut().insert(session_data.clone());
-                    (id, Session::new(session_data), new_session)
+                    (id, Session::new(session_data))
                 }
                 None => {
                     return Err(error::ErrorUnauthorized("no session"));
@@ -152,16 +159,17 @@ where
                 session.set_clean(); // reset flag
             }
 
-            if new_session {
-                use actix_web::cookie::Cookie;
-                let cookie = Cookie::build(cookie_name, session_id.to_string())
-                    .path("/")
-                    .http_only(true)
-                    .finish();
-                res.response_mut()
-                    .add_cookie(&cookie)
-                    .map_err(error::ErrorInternalServerError)?;
-            }
+            // Refresh cookie attributes on every response for security
+            use actix_web::cookie::{Cookie, SameSite};
+            let cookie = Cookie::build(cookie_name, session_id.to_string())
+                .path("/")
+                .http_only(true)
+                .secure(true)
+                .same_site(SameSite::Strict)
+                .finish();
+            res.response_mut()
+                .add_cookie(&cookie)
+                .map_err(error::ErrorInternalServerError)?;
             Ok(res)
         })
     }

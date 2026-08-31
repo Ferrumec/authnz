@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use std::sync::Mutex;
-use std::time::{Duration, Instant};
+use actixutils::Store;
+use std::sync::Arc;
+use std::time::Duration;
 use uuid::Uuid;
 use webauthn_rs::prelude::{
     PasskeyAuthentication, PasskeyRegistration, Url, Webauthn, WebauthnBuilder,
@@ -8,22 +8,49 @@ use webauthn_rs::prelude::{
 
 const CHALLENGE_TTL: Duration = Duration::from_secs(300);
 
+/// Wrapper so we can store ceremony state with an issued-at timestamp for TTL.
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct TimedRegState {
+    issued_at_secs: u64,
+    state: PasskeyRegistration,
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+pub struct TimedAuthState {
+    issued_at_secs: u64,
+    state: PasskeyAuthentication,
+}
+
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0)
+}
+
 pub struct AppState {
     pub webauthn: Webauthn,
-    reg_states: Mutex<HashMap<Uuid, (Instant, PasskeyRegistration)>>,
-    auth_states: Mutex<HashMap<String, (Instant, PasskeyAuthentication)>>,
+    reg_store: Arc<dyn Store<String, TimedRegState>>,
+    auth_store: Arc<dyn Store<String, TimedAuthState>>,
 }
 
 impl AppState {
-    pub fn new(webauthn: Webauthn) -> Self {
+    pub fn new(
+        webauthn: Webauthn,
+        reg_store: Arc<dyn Store<String, TimedRegState>>,
+        auth_store: Arc<dyn Store<String, TimedAuthState>>,
+    ) -> Self {
         Self {
             webauthn,
-            reg_states: Mutex::new(HashMap::new()),
-            auth_states: Mutex::new(HashMap::new()),
+            reg_store,
+            auth_store,
         }
     }
 
-    pub fn from_env() -> Self {
+    pub fn from_env(
+        reg_store: Arc<dyn Store<String, TimedRegState>>,
+        auth_store: Arc<dyn Store<String, TimedAuthState>>,
+    ) -> Self {
         let rp_id = std::env::var("WEBAUTHN_RP_ID").expect("WEBAUTHN_RP_ID env var not set");
         let rp_origin_raw =
             std::env::var("WEBAUTHN_RP_ORIGIN").expect("WEBAUTHN_RP_ORIGIN env var not set");
@@ -37,34 +64,59 @@ impl AppState {
             .build()
             .expect("failed to build WebAuthn instance");
 
-        Self::new(webauthn)
+        Self::new(webauthn, reg_store, auth_store)
     }
 
-    pub fn store_reg_state(&self, user_id: Uuid, state: PasskeyRegistration) {
-        let mut guard = self.reg_states.lock().unwrap_or_else(|e| e.into_inner());
-        guard.retain(|_, (t, _)| t.elapsed() < CHALLENGE_TTL);
-        guard.insert(user_id, (Instant::now(), state));
-    }
-
-    pub fn take_reg_state(&self, user_id: &Uuid) -> Option<PasskeyRegistration> {
-        let mut guard = self.reg_states.lock().unwrap_or_else(|e| e.into_inner());
-        match guard.remove(user_id) {
-            Some((t, s)) if t.elapsed() < CHALLENGE_TTL => Some(s),
-            _ => None,
+    pub async fn store_reg_state(&self, user_id: Uuid, state: PasskeyRegistration) {
+        let timed = TimedRegState {
+            issued_at_secs: now_secs(),
+            state,
+        };
+        if let Err(e) = self.reg_store.set(&user_id.to_string(), timed).await {
+            tracing::error!("failed to store passkey reg state: {e}");
         }
     }
 
-    pub fn store_auth_state(&self, username: String, state: PasskeyAuthentication) {
-        let mut guard = self.auth_states.lock().unwrap_or_else(|e| e.into_inner());
-        guard.retain(|_, (t, _)| t.elapsed() < CHALLENGE_TTL);
-        guard.insert(username, (Instant::now(), state));
+    pub async fn take_reg_state(&self, user_id: &Uuid) -> Option<PasskeyRegistration> {
+        let key = user_id.to_string();
+        let timed = match self.reg_store.get(&key).await {
+            Ok(v) => v?,
+            Err(e) => {
+                tracing::error!("failed to get passkey reg state: {e}");
+                return None;
+            }
+        };
+        let _ = self.reg_store.delete(&key).await;
+        let age = now_secs().saturating_sub(timed.issued_at_secs);
+        if age > CHALLENGE_TTL.as_secs() {
+            return None;
+        }
+        Some(timed.state)
     }
 
-    pub fn take_auth_state(&self, username: &str) -> Option<PasskeyAuthentication> {
-        let mut guard = self.auth_states.lock().unwrap_or_else(|e| e.into_inner());
-        match guard.remove(username) {
-            Some((t, s)) if t.elapsed() < CHALLENGE_TTL => Some(s),
-            _ => None,
+    pub async fn store_auth_state(&self, username: String, state: PasskeyAuthentication) {
+        let timed = TimedAuthState {
+            issued_at_secs: now_secs(),
+            state,
+        };
+        if let Err(e) = self.auth_store.set(&username, timed).await {
+            tracing::error!("failed to store passkey auth state: {e}");
         }
+    }
+
+    pub async fn take_auth_state(&self, username: &str) -> Option<PasskeyAuthentication> {
+        let timed = match self.auth_store.get(&username.to_string()).await {
+            Ok(v) => v?,
+            Err(e) => {
+                tracing::error!("failed to get passkey auth state: {e}");
+                return None;
+            }
+        };
+        let _ = self.auth_store.delete(&username.to_string()).await;
+        let age = now_secs().saturating_sub(timed.issued_at_secs);
+        if age > CHALLENGE_TTL.as_secs() {
+            return None;
+        }
+        Some(timed.state)
     }
 }

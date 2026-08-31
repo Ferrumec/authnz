@@ -95,18 +95,22 @@ pub struct SessionParams {
 
 impl FromRequest for SessionParams {
     type Error = Error;
+    type Future = Ready<Result<Self, Error>>;
+
     fn from_request(req: &HttpRequest, _: &mut Payload) -> Self::Future {
+        let ip_address = req
+            .peer_addr()
+            .map(|a| a.ip())
+            .unwrap_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED));
+        let user_agent = req
+            .headers()
+            .get("User-Agent")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("unknown")
+            .to_string();
         ready(Ok(Self {
-            ip_address: req.peer_addr().unwrap().ip(),
-            user_agent: req
-                .headers()
-                .get("User-Agent")
-                .and_then(|v| Some(v.to_str()))
-                .unwrap_or(Ok("unknown"))
-                .unwrap_or("unknown")
-                .to_string(),
+            ip_address,
+            user_agent,
         }))
     }
-
-    type Future = Ready<Result<Self, Error>>;
 }

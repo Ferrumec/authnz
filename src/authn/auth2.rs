@@ -1,6 +1,8 @@
 use crate::authn::domain::user::{UserService, token::generate_raw_token};
 use crate::authn::passwdless::PasswdlessService;
 use sqlx::Pool;
+use std::sync::Arc;
+use viewset::DefaultCache;
 
 pub struct AppState {
     pub pool: Pool<sqlx::Postgres>,
@@ -21,7 +23,11 @@ impl AppState {
             pool,
             passwdless_service,
             #[cfg(feature = "passkey")]
-            passkey: crate::authn::passkey::state::AppState::from_env(),
+            passkey: {
+                let reg_store = Arc::new(DefaultCache::new(1000));
+                let auth_store = Arc::new(DefaultCache::new(1000));
+                crate::authn::passkey::state::AppState::from_env(reg_store, auth_store)
+            },
         }
     }
 }

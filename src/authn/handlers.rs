@@ -16,6 +16,8 @@ use crate::models::User;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{HttpRequest, HttpResponse, Responder, web};
 use actixutils::Session;
+use actixutils::locals::Context;
+use typed_eventbus::Event;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -83,7 +85,10 @@ pub async fn login(
 
     let role = match authz.get_role(&user.id).await {
         Ok(u) => u,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
+        Err(e) => {
+            tracing::error!("get_role failed during login: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
     };
     let user = User::new(user, role);
 
@@ -114,7 +119,10 @@ pub async fn username_login(
 
     let role = match authz.get_role(&user.id).await {
         Ok(u) => u,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
+        Err(e) => {
+            tracing::error!("get_role failed during login: {e}");
+            return HttpResponse::InternalServerError().finish();
+        }
     };
     let user = User::new(user, role);
 
@@ -138,8 +146,11 @@ pub async fn logout(sess: web::Data<SessionService>, req: HttpRequest) -> impl R
 
 pub async fn change_password(
     svc: web::Data<UserService>,
+    sess: web::Data<SessionService>,
+    authz: web::Data<AuthzService>,
     user_session: Session<User>,
     req: web::Json<ChangePasswordRequest>,
+    params: SessionParams,
 ) -> impl Responder {
     let user_id = user_session.read().await.sub;
     let cmd = ChangePasswordCmd {
@@ -149,7 +160,34 @@ pub async fn change_password(
     };
     match svc.change_password(cmd).await {
         Ok(()) => {
-            HttpResponse::Ok().json(ApiResponse::success((), "Password changed successfully"))
+            // The old password no longer works anywhere, so nothing
+            // issued under it should keep working either — revoke every
+            // session for this user...
+            if let Err(e) = sess.revoke_all_for_user(&user_id).await {
+                tracing::error!("failed to revoke sessions after password change: {e}");
+            }
+
+            // ...then issue a fresh one so the device that just changed
+            // the password doesn't get logged out by its own request.
+            let user = match svc.get_user_by_id(&user_id).await {
+                Ok(u) => u,
+                Err(e) => return auth_error_to_response(e),
+            };
+            let role = match authz.get_role(&user_id).await {
+                Ok(r) => r,
+                Err(e) => {
+                    tracing::error!("get_role failed after password change: {e}");
+                    return HttpResponse::InternalServerError().finish();
+                }
+            };
+            let sess_id = match sess.issue_session(User::new(user, role), params).await {
+                Ok(id) => id,
+                Err(e) => return auth_error_to_response(e),
+            };
+
+            HttpResponse::Ok()
+                .cookie(session_cookie(&sess_id))
+                .json(ApiResponse::success((), "Password changed successfully"))
         }
         Err(e) => auth_error_to_response(e),
     }
@@ -158,12 +196,24 @@ pub async fn change_password(
 pub async fn request_password_reset(
     svc: web::Data<UserService>,
     req: web::Json<PasswordResetRequest>,
+    ctx: web::ReqData<Context>,
 ) -> impl Responder {
     // Always return 200 regardless of whether the email was found.
-    svc.request_password_reset(RequestPasswordResetCmd {
-        email: req.email.clone(),
-    })
-    .await;
+    // Errors (DB, etc.) are logged inside the service but never leaked to the client.
+    match svc
+        .request_password_reset(RequestPasswordResetCmd {
+            email: req.email.clone(),
+        })
+        .await
+    {
+        Ok(Some(event)) => {
+            // Hand the raw token off to the event bus (e.g. an email
+            // service subscriber) instead of logging it.
+            ctx.publish(Event::new(event)).await;
+        }
+        Ok(None) => {} // no account for that address – stay silent
+        Err(e) => tracing::error!("password-reset request failed: {e}"),
+    }
     HttpResponse::Ok().json(ApiResponse::success(
         (),
         "If the account exists, a reset link has been sent",
@@ -174,19 +224,21 @@ pub async fn confirm_password_reset(
     svc: web::Data<UserService>,
     sess: web::Data<SessionService>,
     payload: web::Json<PasswordResetConfirmRequest>,
-    req: HttpRequest,
 ) -> impl Responder {
     let cmd = ConfirmPasswordResetCmd {
         token: payload.token.clone(),
         new_password: payload.new_password.clone(),
     };
     match svc.confirm_password_reset(cmd).await {
-        Ok(_user_id) => {
-            if let Some(sess_id) = req.cookie("session")
-                && let Err(e) = sess.logout(sess_id.value()).await
-            {
-                return auth_error_to_response(e);
-            };
+        Ok(user_id) => {
+            // Revoke every session for this user, not just the caller's
+            // current cookie — resetting a password is often done from a
+            // device that was never logged in to begin with, and any
+            // session (including a stolen one) issued under the old
+            // password should not survive the reset.
+            if let Err(e) = sess.revoke_all_for_user(&user_id).await {
+                tracing::error!("failed to revoke sessions after password reset: {e}");
+            }
             HttpResponse::Ok().finish()
         }
         Err(e) => auth_error_to_response(e),

@@ -1,5 +1,6 @@
 use crate::authn::domain::user::UserService;
 use crate::authn::passkey::repository::CredsRepo;
+use crate::authn::session::SessionParams;
 use crate::authn::{
     auth2::AppState,
     domain::SessionService,
@@ -55,7 +56,7 @@ pub async fn start(
         }
     };
 
-    state.passkey.store_auth_state(username.clone(), auth_state);
+    state.passkey.store_auth_state(username.clone(), auth_state).await;
 
     tracing::info!("Passkey authentication started for user: {}", username);
     HttpResponse::Ok().json(options)
@@ -72,6 +73,7 @@ pub async fn finish(
     sess: web::Data<SessionService>,
     authz: web::Data<AuthzService>,
     state: web::Data<AppState>,
+    params: SessionParams,
 ) -> HttpResponse {
     let username = query.username.trim().to_string();
 
@@ -82,7 +84,7 @@ pub async fn finish(
         }
     };
 
-    let auth_state = match state.passkey.take_auth_state(&username) {
+    let auth_state = match state.passkey.take_auth_state(&username).await {
         Some(s) => s,
         None => {
             return ErrorResponse::bad_request(
@@ -130,7 +132,7 @@ pub async fn finish(
     };
     let user = User::new(user, role);
 
-    let sess_id = match sess.issue_session(user).await {
+    let sess_id = match sess.issue_session(user, params).await {
         Ok(sess_id) => sess_id,
         Err(e) => return auth_error_to_response(e),
     };

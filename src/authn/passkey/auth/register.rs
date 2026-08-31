@@ -56,7 +56,7 @@ pub async fn start(
         }
     };
 
-    state.passkey.store_reg_state(user_id, reg_state);
+    state.passkey.store_reg_state(user_id, reg_state).await;
 
     tracing::info!("Passkey registration started for user: {}", user.username);
     HttpResponse::Ok().json(options)
@@ -74,7 +74,7 @@ pub async fn finish(
 ) -> HttpResponse {
     let user_id = session.read().await.sub;
 
-    let reg_state = match state.passkey.take_reg_state(&user_id) {
+    let reg_state = match state.passkey.take_reg_state(&user_id).await {
         Some(s) => s,
         None => {
             return ErrorResponse::bad_request(

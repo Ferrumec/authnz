@@ -6,17 +6,6 @@ CREATE TABLE IF NOT EXISTS permissions (
 );
 
 CREATE TABLE IF NOT EXISTS absolutes (
-    to_id UUID NOT NULL,
-    aud TEXT NOT NULL,
-    role TEXT NOT NULL,
-    UNIQUE(to_id, aud)
+    to_id UUID NOT NULL PRIMARY KEY,
+    role UUID NOT NULL
 );
-
-CREATE TABLE IF NOT EXISTS grants (
-    from_id UUID NOT NULL,
-    to_id UUID NOT NULL,
-    aud TEXT NOT NULL,
-    role TEXT NOT NULL,
-    UNIQUE(from_id, to_id, aud)
-);
-

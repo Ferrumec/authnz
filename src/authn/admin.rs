@@ -81,6 +81,16 @@ impl SessionRepo {
     pub fn new(pool: PgPool, cache: Arc<dyn Store<Uuid, Session>>) -> Self {
         Self { pool, cache }
     }
+
+    /// IDs of every session row belonging to `sub`, straight from the
+    /// database (bypassing the entity cache, which is keyed by session
+    /// id and has no per-user index). Used to bulk-revoke a user's
+    /// sessions via the normal cache-invalidating `Repository::delete`.
+    pub async fn session_ids_for_user(&self, sub: &Uuid) -> Result<Vec<Uuid>, sqlx::Error> {
+        sqlx::query_scalar!("SELECT id FROM sessions WHERE sub = $1", sub)
+            .fetch_all(&self.pool)
+            .await
+    }
 }
 
 impl Repository for SessionRepo {

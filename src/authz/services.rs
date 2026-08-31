@@ -3,7 +3,7 @@ use crate::authz::models::PermissionReq;
 use sqlx::{Error as SqlxError, Pool, Postgres};
 use std::sync::Arc;
 use uuid::Uuid;
-use viewset::Repository;
+use viewset::{ApiError, Repository};
 
 #[derive(Clone)]
 pub struct Service {
@@ -13,10 +13,12 @@ pub struct Service {
 
 impl Service {
     pub async fn get_role(&self, to_id: &Uuid) -> Result<u128, SqlxError> {
-        match self.absolute_repo.retrieve(to_id).await {
-            Ok(grant) => Ok(grant.role.as_u128()),
-            Err(_e) => Err(SqlxError::RowNotFound),
-        }
+        let grant = match self.absolute_repo.retrieve(to_id).await {
+            Ok(r) => r,
+            Err(ApiError::Database(e)) => return Err(e),
+            _ => return Err(SqlxError::RowNotFound),
+        };
+        Ok(grant.role.as_u128())
     }
 
     async fn insert_role(&self, to_id: &Uuid, role: u128) -> Result<(), SqlxError> {
