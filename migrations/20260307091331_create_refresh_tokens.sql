@@ -1,0 +1,14 @@
+-- Add migration script here
+CREATE TABLE IF NOT EXISTS refresh_tokens (
+                id TEXT PRIMARY KEY,
+                user_id UUID NOT NULL,                
+token_hash  TEXT UNIQUE NOT NULL,   
+                issuer TEXT NOT NULL,
+                expires_at TIMESTAMPTZ NOT NULL,
+                revoked BOOLEAN DEFAULT FALSE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+            );
+
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_token ON refresh_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user_id ON refresh_tokens(user_id);

@@ -33,7 +33,7 @@ impl AuthorizModule {
                 .service(admin_deny_permission)
                 .service(
                     web::scope("admin")
-                        .configure(|cfg| self.absolute_viewset.clone().configure(cfg, "absolutes")),
+                        .configure(|cfg| self.absolute_viewset.clone().configure(cfg, "grants")),
                 ),
         );
     }

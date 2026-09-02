@@ -1,4 +1,3 @@
-use std::env;
 use crate::SessionService;
 use crate::authz::{
     models::{AppState, PermissionReq},
@@ -8,6 +7,7 @@ use crate::models::User;
 use actix_web::{HttpResponse, Responder, post, web};
 use actixutils::Session;
 use serde_json::json;
+use std::env;
 use uuid::Uuid;
 
 #[post("/admin/grant")]
@@ -41,7 +41,7 @@ pub async fn admin_grant_permission(
 #[post("/admin/deny")]
 pub async fn admin_deny_permission(
     sess: Session<User>,
-sess_svc: web::Data<SessionService>,
+    sess_svc: web::Data<SessionService>,
     state: web::Data<AppState>,
     body: web::Json<PermissionReq>,
 ) -> HttpResponse {
@@ -53,14 +53,14 @@ sess_svc: web::Data<SessionService>,
     let req = body.into_inner();
     match state.service.admin_deny_permission(req.clone()).await {
         Ok(Some(r)) => {
-            if let Err(_e) = sess_svc.revoke_all_for_user(&req.target).await{
+            if let Err(_e) = sess_svc.revoke_all_for_user(&req.target).await {
                 tracing::warn!("could not revoke user sessions after denying permisson")
             }
             HttpResponse::Ok().json(json!({
-            "success": true,
-            "new_role": r
-        }))
-        },
+                "success": true,
+                "new_role": r
+            }))
+        }
         Ok(None) => HttpResponse::NotAcceptable()
             .body("Error in denying permission, please confirm that the permission was granted"),
         Err(_e) => HttpResponse::InternalServerError().finish(),

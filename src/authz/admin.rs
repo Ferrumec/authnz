@@ -5,11 +5,7 @@ use uuid::Uuid;
 use viewset::{DefaultRepo, DefaultService, DefaultViewSet, Entity};
 
 #[derive(FromRow, Deserialize, Serialize, Clone, Entity)]
-#[entity(
-    table = "absolutes",
-    create = "PermissionReq",
-    update = "PermissionReq"
-)]
+#[entity(table = "grants", create = "PermissionReq", update = "PermissionReq")]
 pub struct Absolute {
     #[entity(pk)]
     pub to_id: Uuid,

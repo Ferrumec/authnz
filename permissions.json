@@ -8,10 +8,10 @@
 
     { "method": "POST", "url": "/authz/admin/deny", "bit_id": 105 },
     { "method": "POST", "url": "/authz/admin/grant", "bit_id": 106 },
-    { "method": "GET", "url": "/authz/admin/absolutes", "bit_id": 107 },
-    { "method": "POST", "url": "/authz/admin/absolutes", "bit_id": 108 },
-    { "method": "GET", "url": "/authz/admin/absolutes/{id}", "bit_id": 109 },
-    { "method": "DELETE", "url": "/authz/admin/absolutes/{id}", "bit_id": 110 },
-    { "method": "PATCH", "url": "/authz/admin/absolutes/{id}", "bit_id": 111 }
+    { "method": "GET", "url": "/authz/admin/grants", "bit_id": 107 },
+    { "method": "POST", "url": "/authz/admin/grants", "bit_id": 108 },
+    { "method": "GET", "url": "/authz/admin/grants/{id}", "bit_id": 109 },
+    { "method": "DELETE", "url": "/authz/admin/grants/{id}", "bit_id": 110 },
+    { "method": "PATCH", "url": "/authz/admin/grants/{id}", "bit_id": 111 }
   ]
 }

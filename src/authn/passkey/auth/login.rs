@@ -56,7 +56,10 @@ pub async fn start(
         }
     };
 
-    state.passkey.store_auth_state(username.clone(), auth_state).await;
+    state
+        .passkey
+        .store_auth_state(username.clone(), auth_state)
+        .await;
 
     tracing::info!("Passkey authentication started for user: {}", username);
     HttpResponse::Ok().json(options)

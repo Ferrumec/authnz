@@ -1,0 +1,5 @@
+
+CREATE TABLE IF NOT EXISTS grants (
+    to_id UUID NOT NULL PRIMARY KEY,
+    role UUID NOT NULL
+);

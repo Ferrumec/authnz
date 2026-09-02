@@ -1,5 +1,4 @@
--- Up
-CREATE TABLE sessions
+CREATE TABLE IF NOT EXISTS sessions
 (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     sub UUID NOT NULL,
@@ -20,5 +19,5 @@ CREATE TABLE sessions
 );
 
 -- Indexes
-CREATE INDEX idx_sessions_user_id ON sessions(sub);
-CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(sub);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);

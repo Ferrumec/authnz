@@ -101,8 +101,7 @@ pub struct SessionMiddlewareService<R, S> {
     cookie_name: String,
 }
 
-impl<S, B> Service<ServiceRequest>
-    for SessionMiddlewareService<S, Sess>
+impl<S, B> Service<ServiceRequest> for SessionMiddlewareService<S, Sess>
 where
     S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = Error> + 'static,
     S::Future: 'static,
@@ -158,7 +157,7 @@ where
                 store.set(&session_id, session_data.clone()).await?;
                 session.set_clean(); // reset flag
             }
-            
+
             Ok(res)
         })
     }

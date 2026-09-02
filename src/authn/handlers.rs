@@ -1,3 +1,4 @@
+use crate::authn::domain::JwtService;
 use crate::authn::domain::SessionService;
 use crate::authn::domain::user::{
     UserService,
@@ -257,4 +258,13 @@ pub async fn protected(sess: Session<User>) -> impl Responder {
         },
         "Protected data retrieved successfully",
     ))
+}
+
+pub async fn jwt(sess: Session<User>, jwt_svc: web::Data<JwtService>) -> impl Responder {
+    let user = sess.read().await;
+    let result = match jwt_svc.issue_token_pair(user.sub, "session").await {
+        Ok(result) => result,
+        Err(_e) => return HttpResponse::InternalServerError().finish(),
+    };
+    HttpResponse::Ok().json(result)
 }

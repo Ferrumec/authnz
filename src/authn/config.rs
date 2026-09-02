@@ -61,6 +61,7 @@ impl AuthModule {
             .service(
                 web::scope("/me")
                     .wrap(session_middleware)
+                    .route("/jwt", web::post().to(handlers::jwt))
                     .route("/logout", web::post().to(handlers::logout))
                     .route("/account", web::get().to(handlers::protected))
                     .route(

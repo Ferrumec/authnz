@@ -22,10 +22,10 @@ impl Service {
     }
 
     async fn insert_role(&self, to_id: &Uuid, role: u128) -> Result<(), SqlxError> {
-        let role = role.to_string();
+        let role = Uuid::from_u128(role);
         sqlx::query!(
             r#"
-        INSERT INTO absolutes (to_id, role)
+        INSERT INTO grants (to_id, role)
         VALUES ($1, $2)
         ON CONFLICT(to_id) DO UPDATE SET role = excluded.role
         "#,
@@ -38,9 +38,9 @@ impl Service {
     }
 
     async fn update_role(&self, to_id: &Uuid, role: u128) -> Result<(), SqlxError> {
-        let role = role.to_string();
+        let role = Uuid::from_u128(role);
         sqlx::query!(
-            r#"UPDATE absolutes SET role = $1 WHERE to_id = $2"#,
+            r#"UPDATE grants SET role = $1 WHERE to_id = $2"#,
             role,
             to_id
         )
