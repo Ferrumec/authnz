@@ -150,6 +150,7 @@ pub async fn change_password(
     svc: web::Data<UserService>,
     sess: web::Data<SessionService>,
     authz: web::Data<AuthzService>,
+    jwt: web::Data<JwtService>,
     user_session: Session<User>,
     req: web::Json<ChangePasswordRequest>,
     params: SessionParams,
@@ -186,6 +187,10 @@ pub async fn change_password(
                 Ok(id) => id,
                 Err(e) => return auth_error_to_response(e),
             };
+
+            if let Err(e) = jwt.revoke_all_user_tokens(&user_id).await {
+                tracing::error!("failed to revoke refresh tokens after password reset: {e}");
+            }
 
             HttpResponse::Ok()
                 .cookie(session_cookie(&sess_id))
@@ -224,6 +229,7 @@ pub async fn request_password_reset(
 
 pub async fn confirm_password_reset(
     svc: web::Data<UserService>,
+    jwt: web::Data<JwtService>,
     sess: web::Data<SessionService>,
     payload: web::Json<PasswordResetConfirmRequest>,
 ) -> impl Responder {
@@ -241,6 +247,11 @@ pub async fn confirm_password_reset(
             if let Err(e) = sess.revoke_all_for_user(&user_id).await {
                 tracing::error!("failed to revoke sessions after password reset: {e}");
             }
+
+            if let Err(e) = jwt.revoke_all_user_tokens(&user_id).await {
+                tracing::error!("failed to revoke refresh tokens after password reset: {e}");
+            }
+
             HttpResponse::Ok().finish()
         }
         Err(e) => auth_error_to_response(e),
