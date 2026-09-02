@@ -44,6 +44,11 @@ impl AuthModule {
             .app_data(self.state.clone())
             .service(username2userid)
             .service(
+                web::scope("/jwt")
+                    .route("/logout", web::post().to(handlers::jwt_logout))
+                    .route("/refresh", web::post().to(handlers::refresh)),
+            )
+            .service(
                 web::scope("/auth")
                     .route("/register", web::post().to(handlers::register))
                     .route("/login/email", web::post().to(handlers::login))

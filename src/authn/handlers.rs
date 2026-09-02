@@ -1,5 +1,6 @@
 use crate::authn::domain::JwtService;
 use crate::authn::domain::SessionService;
+use crate::authn::domain::jwt::{LogoutCmd, RefreshCmd};
 use crate::authn::domain::user::{
     UserService,
     errors::AuthError,
@@ -267,4 +268,24 @@ pub async fn jwt(sess: Session<User>, jwt_svc: web::Data<JwtService>) -> impl Re
         Err(_e) => return HttpResponse::InternalServerError().finish(),
     };
     HttpResponse::Ok().json(result)
+}
+
+pub async fn jwt_logout(
+    svc: web::Data<JwtService>,
+    payload: web::Json<LogoutCmd>,
+) -> impl Responder {
+    let cmd = payload.into_inner();
+    if let Err(_e) = svc.logout(cmd).await {
+        return HttpResponse::InternalServerError().finish();
+    }
+
+    HttpResponse::Ok().json(ApiResponse::success((), "Logged out successfully"))
+}
+
+pub async fn refresh(svc: web::Data<JwtService>, req: web::Json<RefreshCmd>) -> impl Responder {
+    let cmd = req.into_inner();
+    match svc.refresh(cmd).await {
+        Ok(result) => HttpResponse::Ok().json(ApiResponse::success(result, "Refresh successful")),
+        Err(_e) => return HttpResponse::InternalServerError().finish(),
+    }
 }
