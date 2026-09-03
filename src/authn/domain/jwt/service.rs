@@ -1,6 +1,6 @@
-//! The single authoritative home for all authentication business logic.
+//! The single authoritative home for all jwt authentication business logic.
 //!
-//! HTTP handlers are thin wrappers: parse → call AuthService → map to HTTP.
+//! HTTP handlers are thin wrappers: parse → call JwtService → map to HTTP.
 //! No database queries and no crypto live outside this module and its
 //! submodules.
 
@@ -10,7 +10,7 @@ use crate::authn::admin::UserRepository;
 use crate::authn::domain::user::token::{generate_raw_token, hash_token};
 use actixutils::{Identity, Sign};
 use chrono::Utc;
-use sqlx::{Pool, Postgres};
+use sqlx::{Executor, Pool, Postgres};
 use std::sync::Arc;
 use uuid::Uuid;
 use viewset::Repository;
@@ -54,9 +54,9 @@ impl JwtService {
 
     /// Exchange a valid refresh token for a new token pair.
     ///
-    /// The old refresh token is deleted (not just flagged) so it can never
-    /// be replayed. This is atomic: if issuing the new pair fails, the old
-    /// token is NOT invalidated.
+    /// The old refresh token is deleted and a new pair is issued inside a
+    /// single database transaction. If anything fails before commit, the
+    /// old token remains valid and can be replayed (by design).
     pub async fn refresh(&self, cmd: RefreshCmd) -> Result<JwtResult, AuthError> {
         let raw = cmd.refresh_token.trim();
         if raw.is_empty() {
@@ -64,7 +64,9 @@ impl JwtService {
         }
 
         let hash = hash_token(raw);
-        let row = self.get_refresh_token_by_hash(&hash).await?;
+        let mut tx = self.pool.begin().await?;
+
+        let row = self.get_refresh_token_by_hash(&mut *tx, &hash).await?;
 
         if row.revoked {
             return Err(AuthError::RefreshTokenNotFound);
@@ -79,11 +81,14 @@ impl JwtService {
             Err(_) => return Err(AuthError::UserNotFound),
         };
 
-        // Rotation: delete old token, then issue fresh pair.
-        // We delete by hash (not by raw token) since that's what's stored.
-        self.delete_refresh_token_by_hash(&hash).await?;
+        // Rotation: delete old token and issue fresh pair atomically.
+        self.delete_refresh_token_by_hash(&mut *tx, &hash).await?;
+        let result = self
+            .issue_token_pair_with(&mut *tx, user.id, &row.issuer)
+            .await?;
 
-        self.issue_token_pair(user.id, &row.issuer).await
+        tx.commit().await?;
+        Ok(result)
     }
 
     // ── Logout ────────────────────────────────────────────────────────────────
@@ -123,6 +128,19 @@ impl JwtService {
         user_id: Uuid,
         issuer: &str,
     ) -> Result<JwtResult, AuthError> {
+        self.issue_token_pair_with(&self.pool, user_id, issuer).await
+    }
+
+    /// Generic backing for `issue_token_pair` so it can run inside a tx.
+    async fn issue_token_pair_with<'e, E>(
+        &self,
+        executor: E,
+        user_id: Uuid,
+        issuer: &str,
+    ) -> Result<JwtResult, AuthError>
+    where
+        E: sqlx::Executor<'e, Database = Postgres>,
+    {
         let access_token = self
             .signer
             .sign(&Identity::new(user_id, self.aud.clone()))
@@ -145,7 +163,7 @@ impl JwtService {
             expires_at,
             now
         )
-        .execute(&self.pool)
+        .execute(executor)
         .await?;
 
         Ok(JwtResult {
@@ -155,7 +173,14 @@ impl JwtService {
         })
     }
 
-    async fn get_refresh_token_by_hash(&self, hash: &str) -> Result<RefreshTokenRow, AuthError> {
+    async fn get_refresh_token_by_hash<'e, E>(
+        &self,
+        executor: E,
+        hash: &str,
+    ) -> Result<RefreshTokenRow, AuthError>
+    where
+        E: sqlx::Executor<'e, Database = Postgres>,
+    {
         sqlx::query!(
             r#"
             SELECT
@@ -171,7 +196,7 @@ impl JwtService {
             "#,
             hash
         )
-        .fetch_one(&self.pool)
+        .fetch_one(executor)
         .await
         .map(|r| RefreshTokenRow {
             user_id: r.user_id,
@@ -183,9 +208,16 @@ impl JwtService {
     }
 
     /// Hard-delete a single refresh token by hash (rotation).
-    async fn delete_refresh_token_by_hash(&self, hash: &str) -> Result<(), AuthError> {
+    async fn delete_refresh_token_by_hash<'e, E>(
+        &self,
+        executor: E,
+        hash: &str,
+    ) -> Result<(), AuthError>
+    where
+        E: sqlx::Executor<'e, Database = Postgres>,
+    {
         sqlx::query!("DELETE FROM refresh_tokens WHERE token_hash = $1", hash)
-            .execute(&self.pool)
+            .execute(executor)
             .await?;
         Ok(())
     }
