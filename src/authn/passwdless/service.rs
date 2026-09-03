@@ -21,7 +21,7 @@ impl From<sqlx::Error> for PasswdlessError {
 
 pub struct Caches {
     links: Cache<String, FA2Entry>,
-    tokens: Cache<u32, FA2Entry>,
+    tokens: Cache<String, FA2Entry>,
 }
 
 #[derive(Clone, PartialEq, Hash, Eq)]
@@ -29,6 +29,7 @@ struct FA2Entry {
     link: String,
     token: u32,
     email: Uuid,
+    nonce: String,
 }
 
 impl Caches {
@@ -54,17 +55,19 @@ fn random_otp() -> u32 {
     rng.gen_range(100000..999999)
 }
 
-async fn release_pair(email: Uuid, caches: &Caches) -> (u32, String) {
+async fn release_pair(email: Uuid, caches: &Caches) -> ChallengeRequested {
     let link = random_token();
+    let nonce = random_token();
     let token = random_otp();
     let fa2 = FA2Entry {
         link: link.clone(),
         token,
         email,
+        nonce: nonce.clone(),
     };
-    caches.tokens.insert(token, fa2.clone()).await;
+    caches.tokens.insert(nonce.clone(), fa2.clone()).await;
     caches.links.insert(link.clone(), fa2.clone()).await;
-    (token, link)
+    ChallengeRequested { token, link, nonce }
 }
 
 impl PasswdlessService {
@@ -81,15 +84,20 @@ impl PasswdlessService {
             None => return Err(PasswdlessError::BadToken),
             Some(e) => e,
         };
-        self.caches.tokens.remove(&fa2.token).await;
+        self.caches.tokens.remove(&fa2.nonce).await;
         Ok(fa2.email)
     }
 
-    pub async fn confirm_token(&self, token: u32) -> Result<Uuid, PasswdlessError> {
+    pub async fn confirm_token(&self, token: u32, nonce: String) -> Result<Uuid, PasswdlessError> {
         // Check the email for this token and invalidate the token on success
-        let fa2 = match self.caches.tokens.remove(&token).await {
+        let fa2 = match self.caches.tokens.remove(&nonce).await {
             None => return Err(PasswdlessError::BadToken),
-            Some(e) => e,
+            Some(e) => {
+                if e.token != token {
+                    return Err(PasswdlessError::BadToken);
+                };
+                e
+            }
         };
         self.caches.links.remove(&fa2.link).await;
         Ok(fa2.email)
@@ -104,8 +112,7 @@ impl PasswdlessService {
             Err(_) => return Err(PasswdlessError::UserNotFound),
         };
 
-        let (token, link) = release_pair(user.id, &self.caches).await;
-        let payload = ChallengeRequested { token, link };
+        let payload = release_pair(user.id, &self.caches).await;
 
         Ok(payload)
     }
@@ -118,8 +125,7 @@ impl PasswdlessService {
             Err(_) => return Err(PasswdlessError::UserNotFound),
         };
 
-        let (token, link) = release_pair(user.id, &self.caches).await;
-        let payload = ChallengeRequested { token, link };
+        let payload = release_pair(user.id, &self.caches).await;
 
         Ok(payload)
     }
@@ -129,6 +135,7 @@ impl PasswdlessService {
 pub struct ChallengeRequested {
     token: u32,
     link: String,
+    nonce: String,
 }
 
 impl Publishable for ChallengeRequested {

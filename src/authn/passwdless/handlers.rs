@@ -46,6 +46,7 @@ impl ResponseError for PasswdlessError {
 #[derive(Deserialize)]
 struct Token {
     token: u32,
+    nonce: String,
 }
 
 #[derive(Deserialize)]
@@ -133,7 +134,11 @@ async fn confirm_token(
     params: SessionParams,
 ) -> impl Responder {
     let token = token.into_inner();
-    let user_id = match data.passwdless_service.confirm_token(token.token).await {
+    let user_id = match data
+        .passwdless_service
+        .confirm_token(token.token, token.nonce)
+        .await
+    {
         Ok(r) => r,
         Err(e) => return translate_error(e),
     };
