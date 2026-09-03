@@ -131,16 +131,14 @@ impl JwtService {
         let raw_refresh = generate_raw_token();
         let token_hash = hash_token(&raw_refresh);
 
-        let id = Uuid::new_v4().to_string();
         let expires_at = Utc::now() + chrono::Duration::days(REFRESH_TOKEN_EXPIRY_DAYS);
         let now = Utc::now();
 
         sqlx::query!(
             r#"
-            INSERT INTO refresh_tokens (id, user_id, token_hash, issuer, expires_at, revoked, created_at)
-            VALUES ($1, $2, $3, $4, $5, FALSE, $6)
+            INSERT INTO refresh_tokens (user_id, token_hash, issuer, expires_at, revoked, created_at)
+            VALUES ($1, $2, $3, $4, FALSE, $5)
             "#,
-            id,
             user_id,
             token_hash,
             issuer,
