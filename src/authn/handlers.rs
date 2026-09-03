@@ -17,7 +17,7 @@ use crate::authz::Service as AuthzService;
 use crate::models::User;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{HttpRequest, HttpResponse, Responder, web};
-use actixutils::Session;
+use crate::authn::session::Session;
 use actixutils::locals::Context;
 use typed_eventbus::Event;
 use uuid::Uuid;

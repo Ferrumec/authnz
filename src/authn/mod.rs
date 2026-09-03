@@ -7,7 +7,7 @@ mod models;
 #[cfg(feature = "passkey")]
 mod passkey;
 mod passwdless;
-mod session;
+pub mod session;
 mod user_id;
 pub use config::AuthModule as Module;
 mod admin;

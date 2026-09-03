@@ -6,7 +6,7 @@ use crate::authn::{
 };
 use crate::models::User;
 use actix_web::{HttpResponse, web};
-use actixutils::Session;
+use crate::authn::session::Session;
 use uuid::Uuid;
 use webauthn_rs::prelude::RegisterPublicKeyCredential;
 /// `POST /passkey/register/start` — begin registering a new passkey for

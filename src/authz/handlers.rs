@@ -5,7 +5,7 @@ use crate::authz::{
 };
 use crate::models::User;
 use actix_web::{HttpResponse, Responder, post, web};
-use actixutils::Session;
+use crate::authn::session::Session;
 use serde_json::json;
 use std::env;
 use uuid::Uuid;
