@@ -1,6 +1,6 @@
+use crate::authn::session::Session;
 use crate::models::User;
 use actix_web::{Error, HttpRequest, HttpResponse, http::header, web};
-use crate::authn::session::Session;
 use awc::Client;
 
 /// Identity headers this proxy asserts on the authenticated user's behalf.

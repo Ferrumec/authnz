@@ -1,18 +1,19 @@
 use super::SessionMiddleware;
 use crate::authn::admin::create_viewset;
+use crate::authn::domain::JwtService;
 #[cfg(feature = "passkey")]
 use crate::authn::passkey;
 use crate::authn::{auth2::AppState, handlers, passwdless::config, user_id::username2userid};
 use crate::models::User as ActiveUser;
 use crate::models::User;
 use actix_web::web::{self, ServiceConfig};
-use actixutils::{HS256Signer,Store};
+use actixutils::middleware::{PermissionSet, Permissions, ResponseEqualizer};
+use actixutils::{HS256Signer, Store};
 use actixutils::{Identity, Sign};
-use actixutils::middleware::{PermissionSet, Permissions};
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
+use std::time::Duration;
 use uuid::Uuid;
-use crate::authn::domain::JwtService;
 use viewset::ViewSet;
 
 #[derive(Clone)]
@@ -20,7 +21,7 @@ pub struct AuthModule {
     state: web::Data<AppState>,
     session_store: Arc<dyn Store<Uuid, ActiveUser>>,
     permissions: PermissionSet,
-    jwt:web::Data<JwtService>,
+    jwt: web::Data<JwtService>,
 }
 
 impl AuthModule {
@@ -32,13 +33,13 @@ impl AuthModule {
         let app_state = AppState::new(pool.clone()).await;
         let secret = std::env::var("signer.secret").expect("signer.secret not set");
         let aud = std::env::var("signer.aud").expect("signer.aud not set");
-        let signer:Arc<dyn Sign<Identity>> = Arc::new(HS256Signer::new(aud,secret));
-        let jwt = web::Data::new(JwtService::new(pool.clone(),signer));
+        let signer: Arc<dyn Sign<Identity>> = Arc::new(HS256Signer::new(aud, secret));
+        let jwt = web::Data::new(JwtService::new(pool.clone(), signer));
         Self {
             state: web::Data::new(app_state),
             session_store,
             permissions,
-            jwt
+            jwt,
         }
     }
     pub fn config(&self, cfg: &mut ServiceConfig, namespace: &str) {
@@ -50,7 +51,7 @@ impl AuthModule {
             // `web::Data<AppState>` directly, so the shared state needs to
             // be registered here too, not just the `AuthService` slice of it.
             .app_data(self.state.clone())
-        .app_data(self.jwt.clone())
+            .app_data(self.jwt.clone())
             .service(username2userid)
             .service(
                 web::scope("/jwt")
@@ -59,6 +60,7 @@ impl AuthModule {
             )
             .service(
                 web::scope("/auth")
+                    .wrap(ResponseEqualizer::new(Duration::from_millis(200)))
                     .route("/register", web::post().to(handlers::register))
                     .route("/login/email", web::post().to(handlers::login))
                     .route("/login/username", web::post().to(handlers::username_login))

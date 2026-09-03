@@ -1,12 +1,12 @@
 use crate::authn::domain::user::UserService;
 use crate::authn::passkey::repository::CredsRepo;
+use crate::authn::session::Session;
 use crate::authn::{
     auth2::AppState,
     passkey::{error::ErrorResponse, models::LabelQuery},
 };
 use crate::models::User;
 use actix_web::{HttpResponse, web};
-use crate::authn::session::Session;
 use uuid::Uuid;
 use webauthn_rs::prelude::RegisterPublicKeyCredential;
 /// `POST /passkey/register/start` — begin registering a new passkey for

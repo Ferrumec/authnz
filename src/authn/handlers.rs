@@ -12,12 +12,12 @@ use crate::authn::models::{
     ApiResponse, ChangePasswordRequest, LoginRequest, PasswordResetConfirmRequest,
     PasswordResetRequest, RegisterRequest,
 };
+use crate::authn::session::Session;
 use crate::authn::session::SessionParams;
 use crate::authz::Service as AuthzService;
 use crate::models::User;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{HttpRequest, HttpResponse, Responder, web};
-use crate::authn::session::Session;
 use actixutils::locals::Context;
 use typed_eventbus::Event;
 use uuid::Uuid;
