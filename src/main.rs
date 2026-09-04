@@ -10,13 +10,13 @@ use actixutils::middleware::{PermissionSet, Permissions, Principal};
 use authn::Module as AuthnModule;
 use authz::Module as AuthzModule;
 use models::User;
+use moka::future::Cache;
 use proxy::{Proxy, proxy};
 use sqlx::PgPool;
 use std::error::Error;
 use std::sync::Arc;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 use uuid::Uuid;
-use viewset::DefaultCache;
 use viewset::Repository;
 
 #[async_trait::async_trait]
@@ -41,9 +41,6 @@ impl Store<Uuid, User> for SessionRepo {
         Repository::delete(self, id).await?;
         Ok(())
     }
-    async fn clear(&self) -> Result<(), Box<dyn Error>> {
-        Ok(())
-    }
 }
 
 impl Principal for User {
@@ -58,7 +55,7 @@ async fn main() -> std::io::Result<()> {
         .with(fmt::layer())
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .init();
-    let cache: Arc<dyn Store<Uuid, Session>> = Arc::new(DefaultCache::new(1000));
+    let cache: Arc<dyn Store<Uuid, Session>> = Arc::new(Cache::new(1000));
     let db_url = std::env::var("DATABASE_URL").expect("var DATABASE_URL not provided");
     let pool = PgPool::connect(&db_url)
         .await

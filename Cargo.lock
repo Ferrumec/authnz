@@ -206,9 +206,9 @@ dependencies = [
 
 [[package]]
 name = "actixutils"
-version = "0.6.4"
+version = "0.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2162dde7458d955bc617c4574d3fd854a4d41cd92efd91c13b0d55c3e879f5d"
+checksum = "d4a283fe452ed9e87b7294c9a0db43aa3f5852321fc8f02db067a0452985b59c"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -217,7 +217,9 @@ dependencies = [
  "chrono",
  "futures",
  "futures-util",
+ "ipnet",
  "jsonwebtoken",
+ "moka",
  "rand 0.10.2",
  "serde",
  "serde_json",
@@ -422,6 +424,7 @@ dependencies = [
  "chrono",
  "futures",
  "futures-util",
+ "ipnet",
  "moka",
  "rand 0.8.7",
  "rust_decimal",
@@ -1829,6 +1832,12 @@ checksum = "879f10e63c20629ecabbb64a8010319738c66a5cd0c29b02d63d272b03751d01"
 dependencies = [
  "generic-array",
 ]
+
+[[package]]
+name = "ipnet"
+version = "2.12.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a756c3fac73139e83f14c2d742155dd2b78d3ee56597b419a0579b7bdd6dd78"
 
 [[package]]
 name = "ipnetwork"
@@ -3797,9 +3806,9 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "viewset"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03be1f244f46d2c6520e3b2b6eac62b3e481b966d720cac91a7658eb97c3af52"
+checksum = "fb2576c0e23f93b388b74983d4163c094763d704eaa98cd317091fd277c86cfc"
 dependencies = [
  "actix-web",
  "actixutils",

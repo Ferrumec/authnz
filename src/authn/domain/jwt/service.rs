@@ -128,7 +128,8 @@ impl JwtService {
         user_id: Uuid,
         issuer: &str,
     ) -> Result<JwtResult, AuthError> {
-        self.issue_token_pair_with(&self.pool, user_id, issuer).await
+        self.issue_token_pair_with(&self.pool, user_id, issuer)
+            .await
     }
 
     /// Generic backing for `issue_token_pair` so it can run inside a tx.

@@ -162,9 +162,44 @@ async fn confirm_token(
     HttpResponse::Ok().cookie(session_cookie(&sess_id)).finish()
 }
 
+use actixutils::extractors::ClientIp;
+use actixutils::locals::ProxyConfig;
+use actixutils::middleware::{ClientIpMiddleware, RateLimiter};
+use ipnet::IpNet;
+use std::str::FromStr;
+use std::time::Duration;
+
+fn proxy_cfg() -> ProxyConfig {
+    let v = {
+        if let Ok(list) = std::env::var("PROXIES") {
+            let addresses = list.split(",");
+            let mut addrs = Vec::new();
+            for addr in addresses {
+                if let Ok(adr) = IpNet::from_str(addr) {
+                    addrs.push(adr)
+                }
+            }
+            addrs
+        } else {
+            Vec::new()
+        }
+    };
+    ProxyConfig::new(v)
+}
+
+use moka::future::Cache;
+use std::sync::Arc;
+
 pub fn config(cfg: &mut ServiceConfig) {
+    let store = Arc::new(Cache::new(1000));
     cfg.service(
         web::scope("")
+            .wrap(ClientIpMiddleware::new(proxy_cfg()))
+            .wrap(RateLimiter::<ClientIp>::new(
+                store,
+                100,
+                Duration::from_secs(60),
+            ))
             .service(confirm)
             .service(confirm_token)
             .service(challenge1)
