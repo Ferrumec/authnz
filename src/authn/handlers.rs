@@ -300,3 +300,47 @@ pub async fn refresh(svc: web::Data<JwtService>, req: web::Json<RefreshCmd>) -> 
         Err(_e) => return HttpResponse::InternalServerError().finish(),
     }
 }
+
+use crate::SessionRepo;
+use actixutils::Filters;
+use viewset::Repository;
+
+pub async fn get_sessions(
+    repo: web::Data<SessionRepo>,
+    mut filters: Filters,
+    session: Session<User>,
+) -> impl Responder {
+    filters.insert("sub".to_string(), session.read().await.sub.to_string());
+    match repo.list(&filters).await {
+        Ok(r) => HttpResponse::Ok().json(r),
+        Err(e) => {
+            tracing::error!("error in listing sessions: {e}");
+            HttpResponse::InternalServerError().finish()
+        }
+    }
+}
+
+pub async fn delete_session(
+    repo: web::Data<SessionRepo>,
+    id: web::Path<Uuid>,
+    sess: Session<User>,
+) -> impl Responder {
+    let id = id.into_inner();
+    let session = match repo.retrieve(&id).await {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::error!("error in retrieving session: {e}");
+            return HttpResponse::InternalServerError();
+        }
+    };
+    if session.sub != sess.read().await.sub {
+        return HttpResponse::Forbidden();
+    };
+    match repo.delete(&id).await {
+        Ok(_r) => HttpResponse::Ok(),
+        Err(e) => {
+            tracing::error!("error in deleting session: {e}");
+            HttpResponse::InternalServerError()
+        }
+    }
+}

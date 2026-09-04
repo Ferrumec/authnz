@@ -77,6 +77,7 @@ impl AuthModule {
             // 🔐 PROTECTED ROUTES
             .service(
                 web::scope("/me")
+                    .app_data(self.session_store.clone())
                     .wrap(session_middleware)
                     .route("/jwt", web::post().to(handlers::jwt))
                     .route("/logout", web::post().to(handlers::logout))
@@ -84,6 +85,11 @@ impl AuthModule {
                     .route(
                         "/change_password",
                         web::post().to(handlers::change_password),
+                    )
+                    .route("/sessions", web::get().to(handlers::get_sessions))
+                    .route(
+                        "/delete_session/{id}",
+                        web::delete().to(handlers::delete_session),
                     )
                     .service(
                         web::scope("/admin")
