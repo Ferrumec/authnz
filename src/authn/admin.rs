@@ -105,11 +105,11 @@ impl Repository for SessionRepo {
 }
 
 pub struct SessionService {
-    repo: SessionRepo,
+    repo: Arc<SessionRepo>,
 }
 
 impl SessionService {
-    fn new(repo: SessionRepo) -> Self {
+    fn new(repo: Arc<SessionRepo>) -> Self {
         Self { repo }
     }
 }
@@ -136,8 +136,8 @@ impl Service for SessionService {
 
 pub type AdminSessionViewSet = DefaultViewSet<SessionService>;
 
-pub fn admin_session_viewset(db: SessionRepo) -> Arc<AdminSessionViewSet> {
-    let service = SessionService::new(db);
+pub fn admin_session_viewset(db: Arc<SessionRepo>) -> Arc<AdminSessionViewSet> {
+    let service = SessionService::new(db.clone());
     Arc::new(service.into())
 }
 

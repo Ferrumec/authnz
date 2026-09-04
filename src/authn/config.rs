@@ -1,4 +1,6 @@
 use super::SessionMiddleware;
+use crate::SessionRepo;
+use crate::authn::admin::admin_session_viewset;
 use crate::authn::admin::create_viewset;
 use crate::authn::domain::JwtService;
 #[cfg(feature = "passkey")]
@@ -7,19 +9,18 @@ use crate::authn::{auth2::AppState, handlers, passwdless::config, user_id::usern
 use crate::models::User as ActiveUser;
 use crate::models::User;
 use actix_web::web::{self, ServiceConfig};
+use actixutils::HS256Signer;
 use actixutils::middleware::{PermissionSet, Permissions, ResponseEqualizer};
-use actixutils::{HS256Signer, Store};
 use actixutils::{Identity, Sign};
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 use std::time::Duration;
-use uuid::Uuid;
 use viewset::ViewSet;
 
 #[derive(Clone)]
 pub struct AuthModule {
     state: web::Data<AppState>,
-    session_store: Arc<dyn Store<Uuid, ActiveUser>>,
+    session_store: Arc<SessionRepo>,
     permissions: PermissionSet,
     jwt: web::Data<JwtService>,
 }
@@ -27,7 +28,7 @@ pub struct AuthModule {
 impl AuthModule {
     pub async fn new(
         pool: Pool<Postgres>,
-        session_store: Arc<dyn Store<Uuid, ActiveUser>>,
+        session_store: Arc<SessionRepo>,
         permissions: PermissionSet,
     ) -> Self {
         let app_state = AppState::new(pool.clone()).await;
@@ -89,6 +90,10 @@ impl AuthModule {
                             .wrap(Permissions::<User>::new(self.permissions.clone()))
                             .configure(|cfg| {
                                 create_viewset(self.state.pool.clone()).configure(cfg, "users")
+                            })
+                            .configure(|cfg| {
+                                admin_session_viewset(self.session_store.clone())
+                                    .configure(cfg, "sessions")
                             }),
                     ),
             )

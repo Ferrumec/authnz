@@ -5,13 +5,18 @@
     { "method": "GET", "url": "/authn/me/admin/users/{id}", "bit_id": 102 },
     { "method": "DELETE", "url": "/authn/me/admin/users/{id}", "bit_id": 103 },
     { "method": "PATCH", "url": "/authn/me/admin/users/{id}", "bit_id": 104 },
+    { "method": "GET", "url": "/authn/me/admin/sessions", "bit_id": 105 },
+    { "method": "POST", "url": "/authn/me/admin/sessions", "bit_id": 106 },
+    { "method": "GET", "url": "/authn/me/admin/sessions/{id}", "bit_id": 107 },
+    { "method": "DELETE", "url": "/authn/me/admin/sessions/{id}", "bit_id": 108 },
+    { "method": "PATCH", "url": "/authn/me/admin/sessions/{id}", "bit_id": 109 },
 
-    { "method": "POST", "url": "/authz/admin/deny", "bit_id": 105 },
-    { "method": "POST", "url": "/authz/admin/grant", "bit_id": 106 },
-    { "method": "GET", "url": "/authz/admin/grants", "bit_id": 107 },
-    { "method": "POST", "url": "/authz/admin/grants", "bit_id": 108 },
-    { "method": "GET", "url": "/authz/admin/grants/{id}", "bit_id": 109 },
-    { "method": "DELETE", "url": "/authz/admin/grants/{id}", "bit_id": 110 },
-    { "method": "PATCH", "url": "/authz/admin/grants/{id}", "bit_id": 111 }
+    { "method": "POST", "url": "/authz/admin/deny", "bit_id": 110 },
+    { "method": "POST", "url": "/authz/admin/grant", "bit_id": 111 },
+    { "method": "GET", "url": "/authz/admin/grants", "bit_id": 112 },
+    { "method": "POST", "url": "/authz/admin/grants", "bit_id": 113 },
+    { "method": "GET", "url": "/authz/admin/grants/{id}", "bit_id": 114 },
+    { "method": "DELETE", "url": "/authz/admin/grants/{id}", "bit_id": 115 },
+    { "method": "PATCH", "url": "/authz/admin/grants/{id}", "bit_id": 116 }
   ]
 }
