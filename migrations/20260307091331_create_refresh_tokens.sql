@@ -1,6 +1,6 @@
 -- Add migration script here
 CREATE TABLE IF NOT EXISTS refresh_tokens (
-                id TEXT PRIMARY KEY,
+                id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
                 user_id UUID NOT NULL,                
 token_hash  TEXT UNIQUE NOT NULL,   
                 issuer TEXT NOT NULL,

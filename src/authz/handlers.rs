@@ -12,15 +12,9 @@ use uuid::Uuid;
 
 #[post("/admin/grant")]
 pub async fn admin_grant_permission(
-    sess: Session<User>,
     state: web::Data<AppState>,
     body: web::Json<PermissionReq>,
 ) -> HttpResponse {
-    let claims = sess.read().await;
-    let required_perm: u128 = 1 << 106;
-    if !(claims.role & required_perm == required_perm) {
-        return HttpResponse::Forbidden().finish();
-    }
     match state
         .service
         .admin_grant_permission(body.into_inner())
@@ -40,16 +34,10 @@ pub async fn admin_grant_permission(
 
 #[post("/admin/deny")]
 pub async fn admin_deny_permission(
-    sess: Session<User>,
     sess_svc: web::Data<SessionService>,
     state: web::Data<AppState>,
     body: web::Json<PermissionReq>,
 ) -> HttpResponse {
-    let claims = sess.read().await;
-    let required_perm: u128 = 1 << 105;
-    if !(claims.role & required_perm == required_perm) {
-        return HttpResponse::Forbidden().finish();
-    }
     let req = body.into_inner();
     match state.service.admin_deny_permission(req.clone()).await {
         Ok(Some(r)) => {

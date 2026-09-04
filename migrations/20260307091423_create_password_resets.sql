@@ -7,4 +7,4 @@ CREATE TABLE IF NOT EXISTS password_resets (
         used BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    )
+    );
