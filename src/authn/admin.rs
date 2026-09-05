@@ -1,6 +1,7 @@
 use crate::models::User as ActiveUser;
 use actixutils::Store;
 use chrono::{DateTime, Utc};
+use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use std::{net::IpAddr, sync::Arc};
@@ -23,17 +24,47 @@ pub struct User {
 }
 
 #[derive(Entity, FromRow, Serialize, Clone, Deserialize)]
-#[entity(table = "sessions", create = "ActiveUser")]
+#[entity(table = "sessions", create = "NewSession")]
 pub struct Session {
     pub id: Uuid,
     #[entity(sortable)]
-    created_at: chrono::DateTime<chrono::Utc>,
+    pub created_at: chrono::DateTime<chrono::Utc>,
     pub sub: Uuid,
     pub username: String,
     pub email: String,
     pub role: Uuid,
     pub expires_at: DateTime<Utc>,
-    pub ip_address: IpAddr,
+    pub ip_address: IpNetwork,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct NewSession {
+    pub sub: Uuid,
+    pub username: String,
+    pub email: String,
+    pub role: Uuid,
+    pub expires_at: DateTime<Utc>,
+    pub ip_address: IpNetwork,
+}
+
+impl NewSession {
+    pub fn new(value: ActiveUser, ip_address: IpAddr) -> Self {
+        let ActiveUser {
+            sub,
+            username,
+            email,
+            role,
+            expires_at,
+        } = value;
+        Self {
+            sub,
+            username,
+            email,
+            expires_at,
+            ip_address: ip_address.into(),
+            role: Uuid::from_u128(role),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -91,8 +122,8 @@ impl Service for SessionService {
     async fn before_create(
         &self,
         _tx: &mut Transaction<'_, Postgres>,
-        _dto: crate::models::User,
-    ) -> Result<crate::models::User, ApiError> {
+        _dto: NewSession,
+    ) -> Result<NewSession, ApiError> {
         return Err(ApiError::Validation(
             "manual create not allowed, use login endpoint".into(),
         ));

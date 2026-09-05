@@ -3,9 +3,11 @@ use crate::SessionRepo;
 use crate::authn::admin::admin_session_viewset;
 use crate::authn::admin::create_viewset;
 use crate::authn::domain::JwtService;
+use crate::authn::domain::user::UserService;
 #[cfg(feature = "passkey")]
 use crate::authn::passkey;
 use crate::authn::{auth2::AppState, handlers, passwdless::config, user_id::username2userid};
+use crate::authz::Service as AuthzService;
 use crate::models::User as ActiveUser;
 use crate::models::User;
 use actix_web::web::{self, ServiceConfig};
@@ -23,6 +25,8 @@ pub struct AuthModule {
     session_store: Arc<SessionRepo>,
     permissions: PermissionSet,
     jwt: web::Data<JwtService>,
+    user_service: web::Data<UserService>,
+    authz: web::Data<AuthzService>,
 }
 
 impl AuthModule {
@@ -32,6 +36,8 @@ impl AuthModule {
         permissions: PermissionSet,
     ) -> Self {
         let app_state = AppState::new(pool.clone()).await;
+        let authz = web::Data::new(AuthzService::new(pool.clone()));
+        let user_service = web::Data::new(UserService::new(pool.clone()));
         let secret = std::env::var("signer.secret").expect("signer.secret not set");
         let aud = std::env::var("signer.aud").expect("signer.aud not set");
         let signer: Arc<dyn Sign<Identity>> = Arc::new(HS256Signer::new(aud, secret));
@@ -41,6 +47,8 @@ impl AuthModule {
             session_store,
             permissions,
             jwt,
+            user_service,
+            authz,
         }
     }
     pub fn config(&self, cfg: &mut ServiceConfig, namespace: &str) {
@@ -53,6 +61,8 @@ impl AuthModule {
             // be registered here too, not just the `AuthService` slice of it.
             .app_data(self.state.clone())
             .app_data(self.jwt.clone())
+            .app_data(self.user_service.clone())
+            .app_data(self.authz.clone())
             .service(username2userid)
             .service(
                 web::scope("/jwt")

@@ -11,9 +11,11 @@
 //! i.e. the same Moka/Redis layer as the existing session middleware).
 //! Sessions use sliding expiration: every successful `validate` call
 //! extends the TTL.
+use crate::Session;
 use crate::authn::domain::user::errors::AuthError;
 use crate::models::User;
 use crate::{SessionRepo, authn::session::SessionParams};
+use ipnetwork::IpNetwork;
 use uuid::Uuid;
 use viewset::{ApiError, Repository};
 // ── SessionService ────────────────────────────────────────────────────────────
@@ -25,6 +27,7 @@ pub struct SessionService {
 
 impl From<ApiError> for AuthError {
     fn from(value: ApiError) -> Self {
+        tracing::debug!("viewset api error: {value}");
         match value {
             ApiError::Database(e) => AuthError::Database(e),
             ApiError::NotFound
@@ -38,6 +41,8 @@ impl From<ApiError> for AuthError {
     }
 }
 
+use crate::authn::admin::NewSession;
+
 impl SessionService {
     pub fn new(store: SessionRepo) -> Self {
         Self { store }
@@ -48,9 +53,24 @@ impl SessionService {
         user: User,
         params: SessionParams,
     ) -> Result<Uuid, AuthError> {
-        let mut session = self.store.create(&user).await?;
-        session.ip_address = params.ip_address;
-        self.store.update(&session.id, &session).await?;
+        let new = NewSession::new(user, params.ip_address);
+        let session = sqlx::query_as!(
+            Session,
+            r#"
+    INSERT INTO sessions (sub, username, email, role, expires_at, ip_address)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    RETURNING id, created_at, sub, username, email,
+              role as "role!: Uuid", expires_at, ip_address as "ip_address!: IpNetwork"
+    "#,
+            new.sub,
+            new.username,
+            new.email,
+            new.role,
+            new.expires_at,
+            new.ip_address
+        )
+        .fetch_one(self.store.database())
+        .await?;
         Ok(session.id)
     }
 

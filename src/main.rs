@@ -9,6 +9,7 @@ use actixutils::Store;
 use actixutils::middleware::{PermissionSet, Permissions, Principal};
 use authn::Module as AuthnModule;
 use authz::Module as AuthzModule;
+use dotenv::dotenv;
 use models::User;
 use moka::future::Cache;
 use proxy::{Proxy, proxy};
@@ -51,6 +52,7 @@ impl Principal for User {
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    dotenv().ok();
     tracing_subscriber::registry()
         .with(fmt::layer())
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))

@@ -126,6 +126,7 @@ pub async fn username_login(
             return HttpResponse::InternalServerError().finish();
         }
     };
+
     let user = User::new(user, role);
 
     let sess_id = match sess.issue_session(user, params).await {

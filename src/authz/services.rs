@@ -12,12 +12,17 @@ pub struct Service {
 }
 
 impl Service {
+    pub fn new(db: Pool<Postgres>) -> Self {
+        Self {
+            db: db.clone(),
+            absolute_repo: Arc::new(db.into()),
+        }
+    }
     pub async fn get_role(&self, to_id: &Uuid) -> Result<u128, SqlxError> {
         let grant = match self.absolute_repo.retrieve(to_id).await {
             Ok(r) => r,
-            Err(ApiError::NotFound) => return Ok(0),
             Err(ApiError::Database(e)) => return Err(e),
-            _ => return Err(SqlxError::RowNotFound),
+            _ => return Ok(0),
         };
         Ok(grant.role.as_u128())
     }

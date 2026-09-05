@@ -32,6 +32,8 @@ validator = { version = "0.20.0", features = ["derive"] }
 tokio = { version = "1.53.1", features = ["sync"] }
 futures-util = "0.3.34"
 ipnet = "2.12.1"
+dotenv = "0.15.0"
+ipnetwork = { version = "0.21.1", features = ["serde"] }
 
 
 [features]

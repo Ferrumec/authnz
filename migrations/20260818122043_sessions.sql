@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS sessions
     role UUID NOT NULL,
 
     -- Device / request info
-    ip_address INET,
+    ip_address INET NOT NULL,
 
     -- Lifecycle
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

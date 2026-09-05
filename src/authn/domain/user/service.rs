@@ -261,7 +261,7 @@ impl UserService {
     }
 
     pub async fn get_user_by_username(&self, username: &str) -> Result<User, AuthError> {
-        sqlx::query_as!(
+        match sqlx::query_as!(
             User,
             r#"
             SELECT
@@ -276,9 +276,12 @@ impl UserService {
             "#,
             username
         )
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|_| AuthError::InvalidCredentials) // mask whether user exists
+        .fetch_optional(&self.pool)
+        .await?
+        {
+            Some(u) => Ok(u),
+            None => Err(AuthError::InvalidCredentials),
+        }
     }
 
     pub async fn get_user_by_email(&self, email: &str) -> Result<User, AuthError> {
