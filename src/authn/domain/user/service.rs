@@ -58,7 +58,7 @@ impl Publishable for PasswordResetRequested {
 #[derive(Clone)]
 pub struct UserService {
     pool: Pool<Postgres>,
-    repo: Arc<UserRepository>,
+    pub(crate) repo: Arc<UserRepository>,
 }
 
 impl UserService {
@@ -265,6 +265,7 @@ impl UserService {
             User,
             r#"
             SELECT
+        email_confirmed,
                 id          as "id!: Uuid",
                 username    as "username!",
         email,
@@ -285,6 +286,7 @@ impl UserService {
             User,
             r#"
             SELECT
+        email_confirmed,
                 id          as "id!: Uuid",
                 username    as "username!",
         email,
@@ -330,6 +332,7 @@ impl UserService {
             INSERT INTO users ( username, email, password_hash, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $5)
             RETURNING
+        email_confirmed,
                 id          as "id!: Uuid",
                 username    as "username!",
         email,

@@ -92,6 +92,8 @@ async fn challenge2(
     }
 }
 
+use viewset::Repository;
+
 #[get("/confirm_link/{link}")]
 async fn confirm(
     data: web::Data<AppState>,
@@ -107,9 +109,14 @@ async fn confirm(
         Err(e) => return translate_error(e),
     };
 
-    let user = match svc.get_user_by_id(&user_id).await {
+    let mut user = match svc.get_user_by_id(&user_id).await {
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+
+    user.email_confirmed = true;
+    if let Err(e) = svc.repo.update(&user_id, &user).await {
+        tracing::error!("failed to set email confirmed: {e}")
     };
     let role = match authz.get_role(&user_id).await {
         Ok(u) => u,
@@ -143,9 +150,14 @@ async fn confirm_token(
         Err(e) => return translate_error(e),
     };
 
-    let user = match svc.get_user_by_id(&user_id).await {
+    let mut user = match svc.get_user_by_id(&user_id).await {
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
+    };
+
+    user.email_confirmed = true;
+    if let Err(e) = svc.repo.update(&user_id, &user).await {
+        tracing::error!("failed to set email confirmed: {e}")
     };
 
     let role = match authz.get_role(&user_id).await {

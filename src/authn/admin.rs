@@ -7,8 +7,8 @@ use std::{net::IpAddr, sync::Arc};
 use uuid::Uuid;
 use viewset::{ApiError, DefaultRepo, DefaultViewSet, Entity, Repository, Service};
 
-#[derive(Entity, FromRow, Serialize, Clone)]
-#[entity(create = "CreateUser", update = "UpdateUser", response = "UserDto")]
+#[derive(Entity, FromRow, Clone, Serialize, Deserialize)]
+
 pub struct User {
     pub id: Uuid,
     #[entity(searchable, sortable, filterable)]
@@ -19,42 +19,7 @@ pub struct User {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub password_hash: String,
     pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct CreateUser {
-    name: String,
-    email: String,
-}
-
-// `skip_serializing_if` is what makes PATCH semantics work: an omitted
-// field in the request body stays absent from the serialized JSON, so the
-// default `update_columns` (see Repository) never touches that column.
-// Without it, `None` would serialize to `null` and the field would be
-// wiped on every PATCH.
-#[derive(Serialize, Deserialize)]
-pub struct UpdateUser {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    username: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    email: Option<String>,
-}
-
-#[derive(Serialize)]
-pub struct UserDto {
-    id: Uuid,
-    username: String,
-    email: String,
-}
-
-impl From<User> for UserDto {
-    fn from(p: User) -> Self {
-        Self {
-            id: p.id,
-            username: p.username,
-            email: p.email,
-        }
-    }
+    pub email_confirmed: bool,
 }
 
 #[derive(Entity, FromRow, Serialize, Clone, Deserialize)]
@@ -166,8 +131,8 @@ impl Service for UserService {
     async fn before_create(
         &self,
         _tx: &mut Transaction<'_, Postgres>,
-        _dto: CreateUser,
-    ) -> Result<CreateUser, ApiError> {
+        _dto: User,
+    ) -> Result<User, ApiError> {
         return Err(ApiError::Validation(
             "manual create not allowed, use registration endpoint".into(),
         ));
