@@ -1,11 +1,10 @@
-use crate::authz::models::PermissionReq;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use uuid::Uuid;
 use viewset::{DefaultRepo, DefaultService, DefaultViewSet, Entity};
 
 #[derive(FromRow, Deserialize, Serialize, Clone, Entity)]
-#[entity(table = "grants", create = "PermissionReq", update = "PermissionReq")]
+#[entity(table = "grants")]
 pub struct Absolute {
     #[entity(pk)]
     pub to_id: Uuid,
