@@ -1,4 +1,4 @@
-name: Release
+name: Android Release
 
 on:
   push:
@@ -9,31 +9,14 @@ permissions:
   contents: write
 
 env:
-  RUST_VERSION: stable
+  TARGET: aarch64-linux-android
+  ANDROID_API: 35
+  NDK_VERSION: 27.2.12479018
 
 jobs:
   build:
-    name: Build ${{ matrix.target }}
+    name: Build Android ARM64
     runs-on: ubuntu-24.04
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Normal Linux ARM64
-          - target: aarch64-unknown-linux-gnu
-            linker: aarch64-linux-gnu-gcc
-            package_ext: tar.gz
-
-          # Static Linux ARM64
-          - target: aarch64-unknown-linux-musl
-            linker: aarch64-linux-musl-gcc
-            package_ext: tar.gz
-
-          # Android ARM64
-          - target: aarch64-linux-android
-            linker: aarch64-linux-android35-clang
-            package_ext: tar.gz
 
     steps:
       - name: Checkout
@@ -42,91 +25,66 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ env.RUST_VERSION }}
-          targets: ${{ matrix.target }}
-
-      # ------------------------------------------------------------
-      # Linux GNU / MUSL dependencies
-      # ------------------------------------------------------------
-
-      - name: Install Linux cross-compilers
-        if: matrix.target != 'aarch64-linux-android'
-        run: |
-          sudo apt-get update
-
-          sudo apt-get install -y \
-            gcc-aarch64-linux-gnu \
-            musl-tools
-
-      # ------------------------------------------------------------
-      # Android NDK
-      # ------------------------------------------------------------
+          targets: aarch64-linux-android
 
       - name: Setup Android SDK
-        if: matrix.target == 'aarch64-linux-android'
         uses: android-actions/setup-android@v3
 
       - name: Install Android NDK
-        if: matrix.target == 'aarch64-linux-android'
         run: |
-          sdkmanager "ndk;27.2.12479018"
+          sdkmanager "ndk;${NDK_VERSION}"
 
-      # ------------------------------------------------------------
-      # Cargo linker configuration
-      # ------------------------------------------------------------
+      - name: Configure Android toolchain
+        shell: bash
+        run: |
+          NDK="${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"
+          TOOLCHAIN="${NDK}/toolchains/llvm/prebuilt/linux-x86_64/bin"
 
-      - name: Configure Cargo linker
+          echo "NDK=${NDK}"
+          echo "TOOLCHAIN=${TOOLCHAIN}"
+
+          # Verify the compiler exists.
+          test -x "${TOOLCHAIN}/aarch64-linux-android${ANDROID_API}-clang"
+
+          # Make the Android toolchain available to cc-rs/ring.
+          echo "${TOOLCHAIN}" >> "${GITHUB_PATH}"
+
+          # Explicit compiler configuration.
+          echo "CC_aarch64_linux_android=${TOOLCHAIN}/aarch64-linux-android${ANDROID_API}-clang" >> "${GITHUB_ENV}"
+          echo "CXX_aarch64_linux_android=${TOOLCHAIN}/aarch64-linux-android${ANDROID_API}-clang++" >> "${GITHUB_ENV}"
+          echo "AR_aarch64_linux_android=${TOOLCHAIN}/llvm-ar" >> "${GITHUB_ENV}"
+
+          # Cargo's final linker.
+          echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=${TOOLCHAIN}/aarch64-linux-android${ANDROID_API}-clang" >> "${GITHUB_ENV}"
+
+      - name: Verify Android compiler
+        run: |
+          which aarch64-linux-android${ANDROID_API}-clang
+          aarch64-linux-android${ANDROID_API}-clang --version
+
+      - name: Configure Cargo
         run: |
           mkdir -p .cargo
 
-          case "${{ matrix.target }}" in
-
-            aarch64-unknown-linux-gnu)
-              cat > .cargo/config.toml <<'EOF'
-          [target.aarch64-unknown-linux-gnu]
-          linker = "aarch64-linux-gnu-gcc"
-          EOF
-              ;;
-
-            aarch64-unknown-linux-musl)
-              cat > .cargo/config.toml <<'EOF'
-          [target.aarch64-unknown-linux-musl]
-          linker = "aarch64-linux-musl-gcc"
-          EOF
-              ;;
-
-            aarch64-linux-android)
-              cat > .cargo/config.toml <<'EOF'
+          cat > .cargo/config.toml <<EOF
           [target.aarch64-linux-android]
-          linker = "aarch64-linux-android35-clang"
+          linker = "${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android${ANDROID_API}-clang"
+          ar = "${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"
           EOF
-              ;;
 
-          esac
-
-      # ------------------------------------------------------------
-      # Rust dependency cache
-      # ------------------------------------------------------------
+          cat .cargo/config.toml
 
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          key: release-${{ matrix.target }}
-
-      # ------------------------------------------------------------
-      # Build
-      # ------------------------------------------------------------
+          key: android-aarch64
 
       - name: Build release
         run: |
           cargo build \
             --release \
             --locked \
-            --target "${{ matrix.target }}"
-
-      # ------------------------------------------------------------
-      # Find package name
-      # ------------------------------------------------------------
+            --target "${TARGET}"
 
       - name: Get package name
         id: package
@@ -137,19 +95,18 @@ jobs:
             --format-version 1 \
             | jq -r '.packages[0].name')"
 
-          echo "name=${NAME}" >> "$GITHUB_OUTPUT"
+          echo "name=${NAME}" >> "${GITHUB_OUTPUT}"
 
-      # ------------------------------------------------------------
-      # Package binary
-      # ------------------------------------------------------------
+      - name: Verify binary
+        run: |
+          file \
+            "target/${TARGET}/release/${{ steps.package.outputs.name }}"
 
       - name: Package binary
         shell: bash
         run: |
           NAME="${{ steps.package.outputs.name }}"
           VERSION="${GITHUB_REF_NAME#v}"
-          TARGET="${{ matrix.target }}"
-
           ARCHIVE="${NAME}-${VERSION}-${TARGET}"
 
           mkdir -p "dist/${ARCHIVE}"
@@ -158,97 +115,29 @@ jobs:
             "target/${TARGET}/release/${NAME}" \
             "dist/${ARCHIVE}/${NAME}"
 
-          chmod +x "dist/${ARCHIVE}/${NAME}"
+          chmod +x \
+            "dist/${ARCHIVE}/${NAME}"
 
-          # Include documentation if present.
-          cp README.md "dist/${ARCHIVE}/" 2>/dev/null || true
+          cp README.md \
+            "dist/${ARCHIVE}/" 2>/dev/null || true
 
-          # Include whichever license file exists.
-          cp LICENSE "dist/${ARCHIVE}/" 2>/dev/null || true
-          cp LICENSE-MIT "dist/${ARCHIVE}/" 2>/dev/null || true
-          cp LICENSE-APACHE "dist/${ARCHIVE}/" 2>/dev/null || true
+          cp LICENSE \
+            "dist/${ARCHIVE}/" 2>/dev/null || true
 
           tar \
             -C dist \
             -czf "dist/${ARCHIVE}.tar.gz" \
             "${ARCHIVE}"
 
-      # ------------------------------------------------------------
-      # Verify binary
-      # ------------------------------------------------------------
-
-      - name: Verify binary
-        run: |
-          file "target/${{ matrix.target }}/release/${{ steps.package.outputs.name }}"
-
-      # ------------------------------------------------------------
-      # Generate checksum
-      # ------------------------------------------------------------
-
       - name: Generate checksum
         run: |
           cd dist
-
-          sha256sum \
-            "${{ steps.package.outputs.name }}-"*.tar.gz \
-            > "SHA256SUMS-${{ matrix.target }}"
-
-      # ------------------------------------------------------------
-      # Upload artifact
-      # ------------------------------------------------------------
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.package.outputs.name }}-${{ matrix.target }}
-          path: |
-            dist/*.tar.gz
-            dist/SHA256SUMS-*
-          if-no-files-found: error
-
-  # ==================================================================
-  # Create one GitHub Release containing all three builds
-  # ==================================================================
-
-  release:
-    name: Create GitHub Release
-    needs: build
-    runs-on: ubuntu-24.04
-
-    steps:
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Prepare release files
-        shell: bash
-        run: |
-          mkdir -p release
-
-          find artifacts \
-            -type f \
-            \( -name "*.tar.gz" -o -name "SHA256SUMS-*" \) \
-            -exec cp {} release/ \;
-
-          cd release
-
-          # Generate one combined checksum file.
-          cat SHA256SUMS-* > SHA256SUMS
-
-          rm SHA256SUMS-*
-
-          echo "Release files:"
-          ls -lh
-
-          echo
-          echo "Checksums:"
-          cat SHA256SUMS
+          sha256sum *.tar.gz > SHA256SUMS
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            release/*.tar.gz
-            release/SHA256SUMS
+            dist/*.tar.gz
+            dist/SHA256SUMS
           generate_release_notes: true
