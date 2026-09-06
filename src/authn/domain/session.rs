@@ -68,11 +68,13 @@ impl SessionService {
                 return Err(AuthError::InvalidToken);
             }
         };
-        if let Err(e) = self.store.delete(&session_id).await {
-            tracing::error!("failed to delete session: {e}");
-            return Err(AuthError::Cache);
+        match self.store.delete(&session_id).await {
+            Ok(_) | Err(ApiError::NotFound) => Ok(()),
+            Err(e) => {
+                tracing::error!("failed to delete session: {e}");
+                Err(AuthError::Cache)
+            }
         }
-        Ok(())
     }
 
     // ── Bulk revoke ──────────────────────────────────────────────────────────

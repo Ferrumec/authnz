@@ -2,11 +2,13 @@ mod authn;
 mod authz;
 mod models;
 mod proxy;
+
 use crate::authn::SessionMiddleware;
 use crate::authn::{Session, SessionRepo, SessionService};
 use actix_web::{App, HttpServer, web};
+use actixutils::middleware::PermissionSet;
 use actixutils::Store;
-use actixutils::middleware::{PermissionSet, Permissions, Principal};
+use actixutils::middleware::Principal;
 use authn::Module as AuthnModule;
 use authz::Module as AuthzModule;
 use dotenv::dotenv;
@@ -23,21 +25,36 @@ use viewset::Repository;
 #[async_trait::async_trait]
 impl Store<Uuid, User> for SessionRepo {
     async fn get(&self, id: &Uuid) -> Result<Option<User>, Box<dyn Error>> {
-        let session = self.retrieve(id).await?;
-        Ok(Some(User {
-            sub: session.sub,
-            email: session.email,
-            username: session.username,
-            role: session.role.as_u128(),
-            expires_at: session.expires_at,
-        }))
+        // Missing / deleted sessions must be `Ok(None)` so SessionMiddleware
+        // can return 401 Unauthorized. Treating NotFound as an error made
+        // logout and post-password-change access look like 500s instead.
+        match self.retrieve(id).await {
+            Ok(session) => Ok(Some(User {
+                sub: session.sub,
+                email: session.email,
+                username: session.username,
+                role: session.role.as_u128(),
+                expires_at: session.expires_at,
+            })),
+            Err(viewset::ApiError::NotFound) => Ok(None),
+            Err(e) => Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            ))),
+        }
     }
     async fn set(&self, _id: &Uuid, _value: User) -> Result<(), Box<dyn Error>> {
         Ok(())
     }
     async fn delete(&self, id: &Uuid) -> Result<(), Box<dyn Error>> {
-        Repository::delete(self, id).await?;
-        Ok(())
+        // Idempotent: deleting an already-gone session is fine.
+        match Repository::delete(self, id).await {
+            Ok(_) | Err(viewset::ApiError::NotFound) => Ok(()),
+            Err(e) => Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                e.to_string(),
+            ))),
+        }
     }
 }
 
@@ -83,11 +100,20 @@ async fn main() -> std::io::Result<()> {
             .app_data(web::Data::new(client))
             .app_data(session_service.clone())
             .configure(|cfg| authentication.clone().config(cfg, "authn"))
+            // SessionMiddleware is required for /authz/* (claim, grant, deny)
+            // and for the upstream proxy identity assertion.
+            // Permissions is applied only to the routes that declare bits in
+            // permissions.json — claim_admin is intentionally reachable by any
+            // authenticated user so it can return 404/406 when the caller's id
+            // does not match ADMIN.
             .service(
                 web::scope("")
-                    .wrap(Permissions::<User>::new(permissions.clone()))
                     .wrap(SessionMiddleware::new(store.clone()))
-                    .configure(|cfg| authorization.clone().config(cfg, "authz"))
+                    .configure(|cfg| {
+                        authorization
+                            .clone()
+                            .config_with_permissions(cfg, "authz", permissions.clone())
+                    })
                     .default_service(web::route().to(proxy)),
             )
     })

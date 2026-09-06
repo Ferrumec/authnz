@@ -144,7 +144,19 @@ pub async fn logout(sess: web::Data<SessionService>, req: HttpRequest) -> impl R
         return auth_error_to_response(e);
     }
 
-    HttpResponse::Ok().json(ApiResponse::success((), "Logged out successfully"))
+    // Clear the cookie so subsequent requests do not keep presenting a
+    // dead session id (middleware still treats a missing store entry as 401).
+    let mut clear = Cookie::build("session", "")
+        .path("/")
+        .http_only(true)
+        .secure(true)
+        .same_site(SameSite::Strict)
+        .finish();
+    clear.make_removal();
+
+    HttpResponse::Ok()
+        .cookie(clear)
+        .json(ApiResponse::success((), "Logged out successfully"))
 }
 
 pub async fn change_password(
@@ -204,7 +216,10 @@ pub async fn change_password(
 pub async fn request_password_reset(
     svc: web::Data<UserService>,
     req: web::Json<PasswordResetRequest>,
-    ctx: web::ReqData<Context>,
+    // Optional: event-bus middleware may not be wired in every deployment /
+    // test harness. The handler must still always return 200 so callers
+    // cannot enumerate accounts.
+    ctx: Option<web::ReqData<Context>>,
 ) -> impl Responder {
     // Always return 200 regardless of whether the email was found.
     // Errors (DB, etc.) are logged inside the service but never leaked to the client.
@@ -217,7 +232,13 @@ pub async fn request_password_reset(
         Ok(Some(event)) => {
             // Hand the raw token off to the event bus (e.g. an email
             // service subscriber) instead of logging it.
-            ctx.publish(Event::new(event)).await;
+            if let Some(ctx) = ctx {
+                ctx.publish(Event::new(event)).await;
+            } else {
+                tracing::debug!(
+                    "password-reset token issued but no event-bus Context is available to publish it"
+                );
+            }
         }
         Ok(None) => {} // no account for that address – stay silent
         Err(e) => tracing::error!("password-reset request failed: {e}"),
@@ -279,7 +300,7 @@ pub async fn jwt(sess: Session<User>, jwt_svc: web::Data<JwtService>) -> impl Re
         Ok(result) => result,
         Err(_e) => return HttpResponse::InternalServerError().finish(),
     };
-    HttpResponse::Ok().json(result)
+    HttpResponse::Ok().json(ApiResponse::success(result, "JWT issued successfully"))
 }
 
 pub async fn jwt_logout(
@@ -303,18 +324,28 @@ pub async fn refresh(svc: web::Data<JwtService>, req: web::Json<RefreshCmd>) -> 
 }
 
 use crate::SessionRepo;
-use actixutils::Filters;
 use viewset::Repository;
 use std::sync::Arc;
 
 pub async fn get_sessions(
     repo: web::Data<Arc<SessionRepo>>,
-    mut filters: Filters,
     session: Session<User>,
 ) -> impl Responder {
-    filters.insert("sub".to_string(), session.read().await.sub.to_string());
-    match repo.list(&filters).await {
-        Ok(r) => HttpResponse::Ok().json(r),
+    // Return a flat JSON array of session objects (each with an `id` field).
+    // The generic viewset list path can return a paginated envelope that
+    // clients cannot index as `sessions[0]["id"]`.
+    let sub = session.read().await.sub;
+    match repo.session_ids_for_user(&sub).await {
+        Ok(ids) => {
+            let mut out = Vec::with_capacity(ids.len());
+            for id in ids {
+                match repo.retrieve(&id).await {
+                    Ok(s) => out.push(s),
+                    Err(e) => tracing::warn!("skipping session {id} while listing: {e}"),
+                }
+            }
+            HttpResponse::Ok().json(out)
+        }
         Err(e) => {
             tracing::error!("error in listing sessions: {e}");
             HttpResponse::InternalServerError().finish()
@@ -323,26 +354,29 @@ pub async fn get_sessions(
 }
 
 pub async fn delete_session(
-    repo: web::Data<SessionRepo>,
+    repo: web::Data<Arc<SessionRepo>>,
     id: web::Path<Uuid>,
     sess: Session<User>,
 ) -> impl Responder {
     let id = id.into_inner();
     let session = match repo.retrieve(&id).await {
         Ok(r) => r,
+        Err(viewset::ApiError::NotFound) => {
+            return HttpResponse::NotFound().finish();
+        }
         Err(e) => {
             tracing::error!("error in retrieving session: {e}");
-            return HttpResponse::InternalServerError();
+            return HttpResponse::InternalServerError().finish();
         }
     };
     if session.sub != sess.read().await.sub {
-        return HttpResponse::Forbidden();
-    };
+        return HttpResponse::Forbidden().finish();
+    }
     match repo.delete(&id).await {
-        Ok(_r) => HttpResponse::Ok(),
+        Ok(_) | Err(viewset::ApiError::NotFound) => HttpResponse::Ok().finish(),
         Err(e) => {
             tracing::error!("error in deleting session: {e}");
-            HttpResponse::InternalServerError()
+            HttpResponse::InternalServerError().finish()
         }
     }
 }

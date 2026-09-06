@@ -59,7 +59,8 @@ struct Email {
 async fn challenge1(
     data: web::Data<AppState>,
     email: web::Json<Email>,
-    ctx: web::ReqData<Context>,
+    // Optional: event-bus middleware may not be present in every deployment.
+    ctx: Option<web::ReqData<Context>>,
 ) -> impl Responder {
     match data
         .passwdless_service
@@ -67,7 +68,13 @@ async fn challenge1(
         .await
     {
         Ok(r) => {
-            ctx.publish(Event::new(r)).await;
+            if let Some(ctx) = ctx {
+                ctx.publish(Event::new(r)).await;
+            } else {
+                tracing::debug!(
+                    "passwordless challenge issued but no event-bus Context is available to publish it"
+                );
+            }
             HttpResponse::Created().finish()
         }
         Err(e) => translate_error(e),
@@ -78,7 +85,7 @@ async fn challenge1(
 async fn challenge2(
     data: web::Data<AppState>,
     username: web::Path<String>,
-    ctx: web::ReqData<Context>,
+    ctx: Option<web::ReqData<Context>>,
 ) -> impl Responder {
     match data
         .passwdless_service
@@ -86,7 +93,13 @@ async fn challenge2(
         .await
     {
         Ok(r) => {
-            ctx.publish(Event::new(r)).await;
+            if let Some(ctx) = ctx {
+                ctx.publish(Event::new(r)).await;
+            } else {
+                tracing::debug!(
+                    "passwordless challenge issued but no event-bus Context is available to publish it"
+                );
+            }
             HttpResponse::Created().finish()
         }
         Err(e) => translate_error(e),
