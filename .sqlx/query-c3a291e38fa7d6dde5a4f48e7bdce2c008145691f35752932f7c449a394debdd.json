@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE password_resets\n            SET used = TRUE\n            WHERE token_hash = $1 AND used = FALSE AND expires_at > $2\n            RETURNING\n                id          as \"id!: Uuid\",\n                user_id     as \"user_id!: Uuid\",\n                expires_at  as \"expires_at!: chrono::DateTime<chrono::Utc>\",\n                used        as \"used!: bool\"\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!: Uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "password_resets",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id!: Uuid",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "password_resets",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "expires_at!: chrono::DateTime<chrono::Utc>",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "password_resets",
+            "name": "expires_at"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "used!: bool",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "password_resets",
+            "name": "used"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "c3a291e38fa7d6dde5a4f48e7bdce2c008145691f35752932f7c449a394debdd"
+}

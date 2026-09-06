@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE grants SET role = $1 WHERE to_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1ec1bb8afd333e5e4f4288b658236f9ab6b36b9dc9ac7617c2146c7e4ae0ec0f"
+}
