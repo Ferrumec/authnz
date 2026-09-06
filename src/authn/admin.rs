@@ -26,8 +26,10 @@ pub struct User {
 #[derive(Entity, FromRow, Serialize, Clone, Deserialize)]
 #[entity(table = "sessions", create = "NewSession")]
 pub struct Session {
+    #[entity(skip_create)]
     pub id: Uuid,
     #[entity(sortable)]
+    #[entity(skip_create)]
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub sub: Uuid,
     pub username: String,

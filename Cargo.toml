@@ -24,7 +24,7 @@ tracing = "0.1.44"
 anyhow = "1.0.102"
 async-trait = "0.1.89"
 rust_decimal = "1.42.1"
-viewset = "0.3"
+viewset = { path = "../viewset" }
 awc = "3.8.2"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 zxcvbn = "3.1.1"

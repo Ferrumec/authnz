@@ -11,11 +11,9 @@
 //! i.e. the same Moka/Redis layer as the existing session middleware).
 //! Sessions use sliding expiration: every successful `validate` call
 //! extends the TTL.
-use crate::Session;
 use crate::authn::domain::user::errors::AuthError;
 use crate::models::User;
 use crate::{SessionRepo, authn::session::SessionParams};
-use ipnetwork::IpNetwork;
 use uuid::Uuid;
 use viewset::{ApiError, Repository};
 // ── SessionService ────────────────────────────────────────────────────────────
@@ -54,22 +52,7 @@ impl SessionService {
         params: SessionParams,
     ) -> Result<Uuid, AuthError> {
         let new = NewSession::new(user, params.ip_address);
-        let session = sqlx::query_as!(
-            Session,
-            r#"
-    INSERT INTO sessions (sub, username, email, role, expires_at, ip_address)
-    VALUES ($1, $2, $3, $4, $5, $6)
-    RETURNING id, created_at, sub, username, email,
-              role as "role!: Uuid", expires_at, ip_address as "ip_address!: IpNetwork"
-    "#,
-            new.sub,
-            new.username,
-            new.email,
-            new.role,
-            new.expires_at,
-            new.ip_address
-        )
-        .fetch_one(self.store.database())
+        let session = self.store.create(new)
         .await?;
         Ok(session.id)
     }

@@ -63,6 +63,7 @@ impl AuthModule {
             .app_data(self.jwt.clone())
             .app_data(self.user_service.clone())
             .app_data(self.authz.clone())
+        .app_data(web::Data::new(self.session_store.clone()))
             .service(username2userid)
             .service(
                 web::scope("/jwt")
@@ -87,7 +88,7 @@ impl AuthModule {
             // 🔐 PROTECTED ROUTES
             .service(
                 web::scope("/me")
-                    .app_data(self.session_store.clone())
+                    //.app_data(self.session_store.clone())
                     .wrap(session_middleware)
                     .route("/jwt", web::post().to(handlers::jwt))
                     .route("/logout", web::post().to(handlers::logout))
