@@ -32,10 +32,7 @@ impl Store<Uuid, User> for SessionRepo {
             expires_at: session.expires_at,
         }))
     }
-    async fn set(&self, id: &Uuid, _value: User) -> Result<(), Box<dyn Error>> {
-        let mut value = self.retrieve(id).await?;
-        value.role = Uuid::from_u128(_value.role);
-        self.update(id, &value).await?;
+    async fn set(&self, _id: &Uuid, _value: User) -> Result<(), Box<dyn Error>> {
         Ok(())
     }
     async fn delete(&self, id: &Uuid) -> Result<(), Box<dyn Error>> {

@@ -2,6 +2,7 @@ use crate::authn::domain::SessionService;
 use crate::authn::domain::user::UserService;
 use crate::authn::handlers::session_cookie;
 use crate::authn::session::SessionParams;
+use crate::authn::admin::UpdateUser;
 use crate::authn::{auth2::AppState, passwdless::PasswdlessError};
 use crate::authz::Service as AuthzService;
 use crate::models::User;
@@ -109,13 +110,13 @@ async fn confirm(
         Err(e) => return translate_error(e),
     };
 
-    let mut user = match svc.get_user_by_id(&user_id).await {
+    let user = match svc.get_user_by_id(&user_id).await {
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
 
-    user.email_confirmed = true;
-    if let Err(e) = svc.repo.update(&user_id, &user).await {
+    let update = UpdateUser{username:None,email_confirmed:Some(true)};
+    if let Err(e) = svc.repo.update(&user_id, update).await {
         tracing::error!("failed to set email confirmed: {e}")
     };
     let role = match authz.get_role(&user_id).await {
@@ -150,13 +151,12 @@ async fn confirm_token(
         Err(e) => return translate_error(e),
     };
 
-    let mut user = match svc.get_user_by_id(&user_id).await {
+    let user = match svc.get_user_by_id(&user_id).await {
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
-
-    user.email_confirmed = true;
-    if let Err(e) = svc.repo.update(&user_id, &user).await {
+let update = UpdateUser{username:None,email_confirmed:Some(true)};
+    if let Err(e) = svc.repo.update(&user_id, update).await {
         tracing::error!("failed to set email confirmed: {e}")
     };
 

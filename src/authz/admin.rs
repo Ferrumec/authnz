@@ -4,12 +4,18 @@ use uuid::Uuid;
 use viewset::{DefaultRepo, DefaultService, DefaultViewSet, Entity};
 
 #[derive(FromRow, Deserialize, Serialize, Clone, Entity)]
-#[entity(table = "grants")]
+#[entity(table = "grants", update="UpdateAbsolute")]
 pub struct Absolute {
     #[entity(pk)]
     pub to_id: Uuid,
     /// Represent u128 permission bit map, represented as str since some db do not support u128
     pub role: Uuid,
+}
+
+#[derive(Serialize,Deserialize)]
+pub struct UpdateAbsolute {
+    pub to_id: Option<Uuid>,
+    pub role: Option<Uuid>,
 }
 
 pub type AbsoluteRepo = DefaultRepo<Absolute>;

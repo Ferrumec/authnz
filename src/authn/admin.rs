@@ -9,18 +9,27 @@ use uuid::Uuid;
 use viewset::{ApiError, DefaultRepo, DefaultViewSet, Entity, Repository, Service};
 
 #[derive(Entity, FromRow, Clone, Serialize, Deserialize)]
-
+#[entity(update="UpdateUser")]
 pub struct User {
+    #[entity(skip_update)]
     pub id: Uuid,
     #[entity(searchable, sortable, filterable)]
     pub username: String,
-    #[entity(sortable, filterable)]
+    #[entity(sortable, filterable,skip_update)]
     pub email: String,
-    #[entity(sortable)]
+    #[entity(sortable,skip_update)]
     pub created_at: chrono::DateTime<chrono::Utc>,
+    #[entity(skip_update)]
     pub password_hash: String,
+    #[entity(skip_update)]
     pub updated_at: DateTime<Utc>,
     pub email_confirmed: bool,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UpdateUser {
+    pub username: Option<String>,
+    pub email_confirmed: Option<bool>,
 }
 
 #[derive(Entity, FromRow, Serialize, Clone, Deserialize)]
