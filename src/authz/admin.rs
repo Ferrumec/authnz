@@ -4,7 +4,7 @@ use uuid::Uuid;
 use viewset::{DefaultRepo, DefaultService, DefaultViewSet, Entity};
 
 #[derive(FromRow, Deserialize, Serialize, Clone, Entity)]
-#[entity(table = "grants", update="UpdateAbsolute")]
+#[entity(table = "grants", update = "UpdateAbsolute")]
 pub struct Absolute {
     #[entity(pk)]
     pub to_id: Uuid,
@@ -12,7 +12,7 @@ pub struct Absolute {
     pub role: Uuid,
 }
 
-#[derive(Serialize,Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct UpdateAbsolute {
     pub to_id: Option<Uuid>,
     pub role: Option<Uuid>,

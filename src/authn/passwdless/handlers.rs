@@ -1,8 +1,8 @@
+use crate::authn::admin::UpdateUser;
 use crate::authn::domain::SessionService;
 use crate::authn::domain::user::UserService;
 use crate::authn::handlers::session_cookie;
 use crate::authn::session::SessionParams;
-use crate::authn::admin::UpdateUser;
 use crate::authn::{auth2::AppState, passwdless::PasswdlessError};
 use crate::authz::Service as AuthzService;
 use crate::models::User;
@@ -128,7 +128,10 @@ async fn confirm(
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
 
-    let update = UpdateUser{username:None,email_confirmed:Some(true)};
+    let update = UpdateUser {
+        username: None,
+        email_confirmed: Some(true),
+    };
     if let Err(e) = svc.repo.update(&user_id, update).await {
         tracing::error!("failed to set email confirmed: {e}")
     };
@@ -168,7 +171,10 @@ async fn confirm_token(
         Ok(u) => u,
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
-let update = UpdateUser{username:None,email_confirmed:Some(true)};
+    let update = UpdateUser {
+        username: None,
+        email_confirmed: Some(true),
+    };
     if let Err(e) = svc.repo.update(&user_id, update).await {
         tracing::error!("failed to set email confirmed: {e}")
     };
@@ -222,7 +228,7 @@ pub fn config(cfg: &mut ServiceConfig) {
             .wrap(ClientIpMiddleware::new(proxy_cfg()))
             .wrap(RateLimiter::<ClientIp>::new(
                 store,
-                100,
+                2,
                 Duration::from_secs(60),
             ))
             .service(confirm)

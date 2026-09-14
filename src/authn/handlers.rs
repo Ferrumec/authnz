@@ -324,8 +324,8 @@ pub async fn refresh(svc: web::Data<JwtService>, req: web::Json<RefreshCmd>) -> 
 }
 
 use crate::SessionRepo;
-use viewset::Repository;
 use std::sync::Arc;
+use viewset::Repository;
 
 pub async fn get_sessions(
     repo: web::Data<Arc<SessionRepo>>,

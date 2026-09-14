@@ -1,4 +1,5 @@
 use super::SessionMiddleware;
+use crate::CacheFactory;
 use crate::SessionRepo;
 use crate::authn::admin::admin_session_viewset;
 use crate::authn::admin::create_viewset;
@@ -30,12 +31,13 @@ pub struct AuthModule {
 }
 
 impl AuthModule {
-    pub async fn new(
+    pub async fn new<Cf: CacheFactory + 'static>(
         pool: Pool<Postgres>,
         session_store: Arc<SessionRepo>,
         permissions: PermissionSet,
+        cache_factory: Cf,
     ) -> Self {
-        let app_state = AppState::new(pool.clone()).await;
+        let app_state = AppState::new(pool.clone(), cache_factory).await;
         let authz = web::Data::new(AuthzService::new(pool.clone()));
         let user_service = web::Data::new(UserService::new(pool.clone()));
         let secret = std::env::var("signer.secret").expect("signer.secret not set");
@@ -63,7 +65,7 @@ impl AuthModule {
             .app_data(self.jwt.clone())
             .app_data(self.user_service.clone())
             .app_data(self.authz.clone())
-        .app_data(web::Data::new(self.session_store.clone()))
+            .app_data(web::Data::new(self.session_store.clone()))
             .service(username2userid)
             .service(
                 web::scope("/jwt")

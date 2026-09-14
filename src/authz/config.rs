@@ -44,11 +44,9 @@ impl AuthorizModule {
                         .wrap(Permissions::<User>::new(permissions))
                         .service(admin_grant_permission)
                         .service(admin_deny_permission)
-                        .service(
-                            web::scope("admin").configure(|cfg| {
-                                self.absolute_viewset.clone().configure(cfg, "grants")
-                            }),
-                        ),
+                        .service(web::scope("admin").configure(|cfg| {
+                            self.absolute_viewset.clone().configure(cfg, "grants")
+                        })),
                 ),
         );
     }
