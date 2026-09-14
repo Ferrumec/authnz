@@ -34,13 +34,20 @@ pub struct JwtService {
 }
 
 impl JwtService {
-    pub fn new(pool: Pool<Postgres>, signer: Arc<dyn Sign<Identity>>) -> Self {
+    /// Builds a `JwtService` around an already-constructed [`UserRepository`]
+    /// so its cache can be shared with other consumers (the `/admin/users`
+    /// viewset and [`crate::authn::domain::user::UserService`]). See
+    /// [`crate::authn::config::AuthModule::new`].
+    pub fn new(
+        pool: Pool<Postgres>,
+        signer: Arc<dyn Sign<Identity>>,
+        user_repo: Arc<UserRepository>,
+    ) -> Self {
         let aud = std::env::var("AUD")
             .expect("AUD env var not set")
             .split(",")
             .map(|s| s.trim().to_string())
             .collect();
-        let user_repo = Arc::new(pool.clone().into());
 
         Self {
             pool,

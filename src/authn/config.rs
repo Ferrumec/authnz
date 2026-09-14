@@ -2,7 +2,7 @@ use super::SessionMiddleware;
 use crate::CacheFactory;
 use crate::SessionRepo;
 use crate::authn::admin::admin_session_viewset;
-use crate::authn::admin::create_viewset;
+use crate::authn::admin::{UserRepository, UserViewSet, create_viewset};
 use crate::authn::domain::JwtService;
 use crate::authn::domain::user::UserService;
 #[cfg(feature = "passkey")]
@@ -28,6 +28,7 @@ pub struct AuthModule {
     jwt: web::Data<JwtService>,
     user_service: web::Data<UserService>,
     authz: web::Data<AuthzService>,
+    user_viewset: Arc<UserViewSet>,
 }
 
 impl AuthModule {
@@ -37,13 +38,20 @@ impl AuthModule {
         permissions: PermissionSet,
         cache_factory: Cf,
     ) -> Self {
-        let app_state = AppState::new(pool.clone(), cache_factory).await;
-        let authz = web::Data::new(AuthzService::new(pool.clone()));
-        let user_service = web::Data::new(UserService::new(pool.clone()));
+        // Built once and shared (cache included) across the domain
+        // `UserService`, `JwtService`, and the `/admin/users` viewset, so
+        // all three see a consistent, cached view of the `users` table —
+        // mirroring how the groups service shares one repository per
+        // entity across its handlers and admin viewsets.
+        let user_repo = Arc::new(UserRepository::new(pool.clone(), cache_factory.clone()));
+        let app_state = AppState::new(pool.clone(), user_repo.clone(), cache_factory.clone()).await;
+        let authz = web::Data::new(AuthzService::new(pool.clone(), cache_factory.clone()));
+        let user_service = web::Data::new(UserService::new(pool.clone(), user_repo.clone()));
         let secret = std::env::var("signer.secret").expect("signer.secret not set");
         let aud = std::env::var("signer.aud").expect("signer.aud not set");
         let signer: Arc<dyn Sign<Identity>> = Arc::new(HS256Signer::new(aud, secret));
-        let jwt = web::Data::new(JwtService::new(pool.clone(), signer));
+        let jwt = web::Data::new(JwtService::new(pool.clone(), signer, user_repo.clone()));
+        let user_viewset = create_viewset(user_repo);
         Self {
             state: web::Data::new(app_state),
             session_store,
@@ -51,6 +59,7 @@ impl AuthModule {
             jwt,
             user_service,
             authz,
+            user_viewset,
         }
     }
     pub fn config(&self, cfg: &mut ServiceConfig, namespace: &str) {
@@ -107,9 +116,7 @@ impl AuthModule {
                     .service(
                         web::scope("/admin")
                             .wrap(Permissions::<User>::new(self.permissions.clone()))
-                            .configure(|cfg| {
-                                create_viewset(self.state.pool.clone()).configure(cfg, "users")
-                            })
+                            .configure(|cfg| self.user_viewset.clone().configure(cfg, "users"))
                             .configure(|cfg| {
                                 admin_session_viewset(self.session_store.clone())
                                     .configure(cfg, "sessions")

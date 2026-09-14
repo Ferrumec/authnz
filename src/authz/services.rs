@@ -1,3 +1,4 @@
+use crate::CacheFactory;
 use crate::authz::admin::AbsoluteRepo;
 use crate::authz::models::PermissionReq;
 use sqlx::{Error as SqlxError, Pool, Postgres};
@@ -12,11 +13,20 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn new(db: Pool<Postgres>) -> Self {
+    /// Builds a `Service` with its own freshly-constructed [`AbsoluteRepo`],
+    /// caching via `cf`.
+    pub fn new<Cf: CacheFactory + 'static>(db: Pool<Postgres>, cf: Cf) -> Self {
         Self {
             db: db.clone(),
-            absolute_repo: Arc::new(db.into()),
+            absolute_repo: Arc::new(AbsoluteRepo::new(db, cf)),
         }
+    }
+
+    /// Builds a `Service` around an already-constructed [`AbsoluteRepo`], so
+    /// callers that need to share its cache with other consumers (e.g. the
+    /// `/admin/grants` viewset) can do so. See [`crate::authz::config::AuthorizModule::new`].
+    pub fn with_repo(db: Pool<Postgres>, absolute_repo: Arc<AbsoluteRepo>) -> Self {
+        Self { db, absolute_repo }
     }
     pub async fn get_role(&self, to_id: &Uuid) -> Result<u128, SqlxError> {
         let grant = match self.absolute_repo.retrieve(to_id).await {

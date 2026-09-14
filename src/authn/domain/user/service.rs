@@ -62,11 +62,12 @@ pub struct UserService {
 }
 
 impl UserService {
-    pub fn new(pool: Pool<Postgres>) -> Self {
-        Self {
-            pool: pool.clone(),
-            repo: Arc::new(pool.into()),
-        }
+    /// Builds a `UserService` around an already-constructed [`UserRepository`]
+    /// so its cache can be shared with other consumers (the `/admin/users`
+    /// viewset and [`crate::authn::domain::JwtService`]). See
+    /// [`crate::authn::config::AuthModule::new`].
+    pub fn new(pool: Pool<Postgres>, repo: Arc<UserRepository>) -> Self {
+        Self { pool, repo }
     }
 
     // ── Password login ────────────────────────────────────────────────────────

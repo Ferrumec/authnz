@@ -1,12 +1,14 @@
+use crate::CacheFactory;
 use crate::models::User as ActiveUser;
 use actixutils::Store;
 use chrono::{DateTime, Utc};
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool, Postgres, Transaction};
+use std::time::Duration;
 use std::{net::IpAddr, sync::Arc};
 use uuid::Uuid;
-use viewset::{ApiError, DefaultRepo, DefaultViewSet, Entity, Repository, Service};
+use viewset::{ApiError, DefaultViewSet, Entity, Repository, Service};
 
 #[derive(Entity, FromRow, Clone, Serialize, Deserialize)]
 #[entity(update = "UpdateUser")]
@@ -148,15 +150,52 @@ pub fn admin_session_viewset(db: Arc<SessionRepo>) -> Arc<AdminSessionViewSet> {
     Arc::new(service.into())
 }
 
-pub type UserRepository = DefaultRepo<User>;
+/// Data access for [`User`], plus its item/list caches.
+///
+/// Mirrors the pattern used by the groups service's repositories (e.g.
+/// `groups::community::CommunityRepository`): caches are built from a
+/// [`CacheFactory`] instead of relying on `viewset::DefaultRepo`'s built-in
+/// (uncached) behavior. Built once by [`crate::authn::config::AuthModule::new`]
+/// and shared between the `/admin/users` viewset, the domain
+/// [`crate::authn::domain::user::UserService`], and [`crate::authn::domain::JwtService`]
+/// so all three see a consistent, cached view of the `users` table.
+pub struct UserRepository {
+    pub pool: PgPool,
+    pub item_cache: Arc<dyn Store<Uuid, User>>,
+    pub list_cache: Arc<dyn Store<u64, (Vec<User>, i64)>>,
+}
+
+impl UserRepository {
+    /// Builds a new repository, creating its caches via `cf`.
+    pub fn new<Cf: CacheFactory + 'static>(pool: PgPool, cf: Cf) -> Self {
+        Self {
+            pool,
+            item_cache: cf.new_cache("user_items", Duration::from_mins(60)),
+            list_cache: cf.new_cache("user_lists", Duration::from_mins(30)),
+        }
+    }
+}
+
+impl Repository for UserRepository {
+    type Entity = User;
+    fn list_cache(&self) -> Arc<dyn Store<u64, (Vec<User>, i64)> + Send + Sync> {
+        self.list_cache.clone()
+    }
+    fn cache(&self) -> Arc<dyn Store<Uuid, User> + Send + Sync> {
+        self.item_cache.clone()
+    }
+
+    fn database(&self) -> &PgPool {
+        &self.pool
+    }
+}
 
 pub struct UserService {
-    repo: UserRepository,
+    repo: Arc<UserRepository>,
 }
 
 impl UserService {
-    fn new(db: PgPool) -> Self {
-        let repo: UserRepository = db.into();
+    pub fn new(repo: Arc<UserRepository>) -> Self {
         Self { repo }
     }
 }
@@ -183,7 +222,9 @@ impl Service for UserService {
 
 pub type UserViewSet = DefaultViewSet<UserService>;
 
-pub fn create_viewset(db: PgPool) -> Arc<UserViewSet> {
-    let service = UserService::new(db);
+/// Builds the generic admin CRUD viewset over users, mounted at
+/// `/me/admin/users` by [`crate::authn::config::AuthModule::config`].
+pub fn create_viewset(repo: Arc<UserRepository>) -> Arc<UserViewSet> {
+    let service = UserService::new(repo);
     Arc::new(service.into())
 }

@@ -3763,9 +3763,9 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "viewset"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "073b8aa44c5bdb80b06ea949af390fdbac53b638b3cbbc80d6db621dd5df5cfe"
+checksum = "399d3e473b99dfb830f870c924f042cebd3f2fcb872799ea8ee30734c9402060"
 dependencies = [
  "actix-web",
  "actixutils",

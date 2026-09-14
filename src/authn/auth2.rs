@@ -1,7 +1,9 @@
 use crate::CacheFactory;
+use crate::authn::admin::UserRepository;
 use crate::authn::domain::user::{UserService, token::generate_raw_token};
 use crate::authn::passwdless::PasswdlessService;
 use sqlx::Pool;
+use std::sync::Arc;
 #[cfg(feature = "passkey")]
 use std::time::Duration;
 
@@ -18,9 +20,10 @@ pub struct AppState {
 impl AppState {
     pub async fn new<Cf: CacheFactory + 'static>(
         pool: Pool<sqlx::Postgres>,
+        user_repo: Arc<UserRepository>,
         #[cfg_attr(not(feature = "passkey"), allow(unused_variables))] cache_factory: Cf,
     ) -> Self {
-        let user_service = UserService::new(pool.clone());
+        let user_service = UserService::new(pool.clone(), user_repo);
         let passwdless_service = PasswdlessService::new(user_service.clone());
 
         Self {

@@ -1,4 +1,5 @@
-use crate::authz::admin::AbsoluteViewSet;
+use crate::CacheFactory;
+use crate::authz::admin::{AbsoluteRepo, AbsoluteViewSet, create_absolute_viewset};
 use crate::authz::{handlers::*, models::AppState, services::Service};
 use crate::models::User;
 use actix_web::web::{self, ServiceConfig};
@@ -14,15 +15,16 @@ pub struct AuthorizModule {
 }
 
 impl AuthorizModule {
-    pub fn new(db: Pool<Postgres>) -> Self {
+    /// Builds the module, constructing a single [`AbsoluteRepo`] (via `cf`)
+    /// that is shared between the grant/deny business logic ([`Service`])
+    /// and the `/admin/grants` viewset, so both see the same cache.
+    pub fn new<Cf: CacheFactory + 'static>(db: Pool<Postgres>, cf: Cf) -> Self {
+        let absolute_repo = Arc::new(AbsoluteRepo::new(db.clone(), cf));
         Self {
             state: web::Data::new(AppState {
-                service: Service {
-                    db: db.clone(),
-                    absolute_repo: Arc::new(db.clone().into()),
-                },
+                service: Service::with_repo(db, absolute_repo.clone()),
             }),
-            absolute_viewset: Arc::new(db.clone().into()),
+            absolute_viewset: create_absolute_viewset(absolute_repo),
         }
     }
 

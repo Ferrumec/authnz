@@ -82,7 +82,7 @@ async fn main() -> std::io::Result<()> {
         )
         .await,
     );
-    let authorization = Arc::new(AuthzModule::new(pool));
+    let authorization = Arc::new(AuthzModule::new(pool, cache_factory));
 
     HttpServer::new(move || {
         // Create one awc client for this Actix worker.
