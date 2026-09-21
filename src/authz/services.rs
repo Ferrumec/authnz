@@ -1,4 +1,4 @@
-use crate::CacheFactory;
+use actixutils::locals::CacheFactory;
 use crate::authz::admin::AbsoluteRepo;
 use crate::authz::models::PermissionReq;
 use sqlx::{Error as SqlxError, Pool, Postgres};

@@ -1,5 +1,5 @@
 use super::SessionMiddleware;
-use crate::CacheFactory;
+use actixutils::locals::CacheFactory;
 use crate::SessionRepo;
 use crate::authn::admin::admin_session_viewset;
 use crate::authn::admin::{UserRepository, UserViewSet, create_viewset};
@@ -32,7 +32,7 @@ pub struct AuthModule {
 }
 
 impl AuthModule {
-    pub async fn new<Cf: CacheFactory + 'static>(
+    pub async fn new<Cf: CacheFactory + Clone + 'static>(
         pool: Pool<Postgres>,
         session_store: Arc<SessionRepo>,
         permissions: PermissionSet,

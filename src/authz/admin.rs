@@ -1,4 +1,4 @@
-use crate::CacheFactory;
+use actixutils::locals::CacheFactory;
 use actixutils::Store;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;

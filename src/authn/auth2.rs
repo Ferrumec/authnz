@@ -1,4 +1,4 @@
-use crate::CacheFactory;
+use actixutils::locals::CacheFactory;
 use crate::authn::admin::UserRepository;
 use crate::authn::domain::user::{UserService, token::generate_raw_token};
 use crate::authn::passwdless::PasswdlessService;

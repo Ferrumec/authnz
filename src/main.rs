@@ -14,40 +14,18 @@
 //! - `GET /health` — unauthenticated liveness/readiness probe (checks DB
 //!   connectivity), used by the Docker `HEALTHCHECK`.
 use actix_web::{App, HttpServer, web};
-use actixutils::Store;
 use actixutils::middleware::PermissionSet;
 use authnz::{
-    AuthnModule, AuthzModule, CacheFactory, Proxy, SessionMiddleware, SessionRepo, SessionService,
+    AuthnModule, AuthzModule, Proxy, SessionMiddleware, SessionRepo, SessionService,
     proxy,
 };
+use actixutils::locals::CacheFactory;
 use dotenv::dotenv;
-use moka::future::Cache;
-use sqlx::PgPool;
-use std::hash::Hash;
 use std::sync::Arc;
 use std::time::Duration;
+use infra::Infrastructure;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
 
-/// [`CacheFactory`] backed by in-process [`moka`] caches.
-///
-/// Note: `_name` and `_ttl` are currently ignored — every cache is created
-/// with a fixed max capacity of 1000 entries and no expiry policy, so the
-/// `Duration` values passed by callers have no effect yet under this
-/// implementation. Entries are evicted only by the capacity-based (LRU-ish)
-/// policy `moka` applies once the cache is full.
-#[derive(Clone)]
-struct MokaCacheFactory;
-
-impl CacheFactory for MokaCacheFactory {
-    fn new_cache<K: Hash + Clone + Eq + Send + Sync + 'static, V: Clone + Send + Sync + 'static>(
-        &self,
-        _name: &str,
-        _ttl: Duration,
-    ) -> Arc<dyn Store<K, V>> {
-        let cache: Cache<K, V> = Cache::new(1000);
-        Arc::new(cache)
-    }
-}
 
 /// Loads configuration, connects to Postgres, and serves the authn/authz
 /// HTTP app on `BIND_ADDR` (default `127.0.0.1:8080`). Panics on missing
@@ -60,14 +38,13 @@ async fn main() -> std::io::Result<()> {
         .with(fmt::layer())
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .init();
+    
+    
 
-    let cache_factory = MokaCacheFactory {};
-    let cache = cache_factory.new_cache("session_items", Duration::from_mins(60));
-    let db_url = std::env::var("DATABASE_URL").expect("var DATABASE_URL not provided");
-    let pool = PgPool::connect(&db_url)
-        .await
-        .expect("could not connect to db");
-    let session_repo: SessionRepo = SessionRepo::new(pool.clone(), cache);
+    let infra = Infrastructure::from_env().await.expect("could not connect to infrastructures");
+    let cache_factory = infra.redis.clone();
+    let cache = cache_factory.new_cache("session_items",Duration::from_mins(30));
+    let session_repo: SessionRepo = SessionRepo::new(infra.postgres.clone(), cache);
     let session_service = web::Data::new(SessionService::new(session_repo.clone()));
     let store = Arc::new(session_repo);
 
@@ -81,15 +58,15 @@ async fn main() -> std::io::Result<()> {
 
     let authentication = Arc::new(
         AuthnModule::new(
-            pool.clone(),
+            infra.postgres.clone(),
             store.clone(),
             permissions.clone(),
             cache_factory.clone(),
         )
         .await,
     );
-    let health_pool = web::Data::new(pool.clone());
-    let authorization = Arc::new(AuthzModule::new(pool, cache_factory));
+    let health_pool = web::Data::new(infra.postgres.clone());
+    let authorization = Arc::new(AuthzModule::new(infra.postgres.clone(), cache_factory));
 
     HttpServer::new(move || {
         // Create one awc client for this Actix worker.
