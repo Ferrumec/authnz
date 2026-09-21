@@ -16,11 +16,13 @@
 
 pub mod authn;
 pub mod authz;
+pub mod health;
 pub mod models;
 pub mod proxy;
 
 pub use authn::{Module as AuthnModule, Session, SessionMiddleware, SessionRepo, SessionService};
 pub use authz::Module as AuthzModule;
+//pub use health::health;
 pub use models::User;
 pub use proxy::{Proxy, proxy};
 

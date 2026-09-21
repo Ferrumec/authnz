@@ -1,13 +1,18 @@
 //! Binary entry point: wires up the database pool, an in-memory
 //! (`moka`)-backed [`CacheFactory`], the authn/authz modules, and the
-//! upstream proxy, then serves on `127.0.0.1:8080`.
+//! upstream proxy, then serves on `BIND_ADDR` (default `127.0.0.1:8080`).
 //!
 //! ## Required environment / files
 //!
 //! - `DATABASE_URL` — Postgres connection string (loaded via `.env` if
 //!   present, through `dotenv`).
+//! - `BIND_ADDR` — optional; defaults to `127.0.0.1:8080`. The Docker
+//!   image sets this to `0.0.0.0:8080` so the port is reachable from
+//!   outside the container.
 //! - `permissions.json` — permission set for protected routes.
 //! - `signer.secret` / `signer.aud` — JWT HS256 configuration.
+//! - `GET /health` — unauthenticated liveness/readiness probe (checks DB
+//!   connectivity), used by the Docker `HEALTHCHECK`.
 use actix_web::{App, HttpServer, web};
 use actixutils::Store;
 use actixutils::middleware::PermissionSet;
@@ -45,8 +50,9 @@ impl CacheFactory for MokaCacheFactory {
 }
 
 /// Loads configuration, connects to Postgres, and serves the authn/authz
-/// HTTP app on `127.0.0.1:8080`. Panics on missing `DATABASE_URL`, a failed
-/// DB connection, or a missing/invalid `permissions.json`.
+/// HTTP app on `BIND_ADDR` (default `127.0.0.1:8080`). Panics on missing
+/// `DATABASE_URL`, a failed DB connection, or a missing/invalid
+/// `permissions.json`.
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     dotenv().ok();
@@ -82,6 +88,7 @@ async fn main() -> std::io::Result<()> {
         )
         .await,
     );
+    let health_pool = web::Data::new(pool.clone());
     let authorization = Arc::new(AuthzModule::new(pool, cache_factory));
 
     HttpServer::new(move || {
@@ -91,6 +98,11 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(client))
             .app_data(session_service.clone())
+            .app_data(health_pool.clone())
+            // Unauthenticated liveness/readiness probe — must stay outside
+            // the SessionMiddleware scope below so it never needs a
+            // session and is never handed off to the upstream proxy.
+            .service(authnz::health::health)
             .configure(|cfg| authentication.clone().config(cfg, "authn"))
             // SessionMiddleware is required for /authz/* (claim, grant, deny)
             // and for the upstream proxy identity assertion.
@@ -111,7 +123,7 @@ async fn main() -> std::io::Result<()> {
                     .default_service(web::route().to(proxy)),
             )
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(std::env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:8080".into()))?
     .run()
     .await
 }
