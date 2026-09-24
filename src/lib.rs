@@ -11,8 +11,9 @@
 //! - [`proxy`] — upstream reverse-proxy identity assertion.
 //!
 //! The binary entry point (`main.rs`) supplies a concrete
-//! [`CacheFactory`] (typically an in-process `moka` factory) and wires the
-//! modules into an `actix-web` `HttpServer`.
+//! [`actixutils::locals::CacheFactory`] (the `redis::aio::ConnectionManager`
+//! from `infra::Infrastructure`) and wires the modules into an `actix-web`
+//! `HttpServer`.
 
 pub mod authn;
 pub mod authz;
@@ -31,25 +32,8 @@ use actixutils::middleware::Principal;
 use authn::SessionRepo as DomainSessionRepo;
 use models::User as ActiveUser;
 use std::error::Error;
-use std::hash::Hash;
-use std::sync::Arc;
-use std::time::Duration;
 use uuid::Uuid;
 use viewset::Repository;
-
-/// Constructs the [`actixutils::Store`] caches used throughout the crate.
-///
-/// Implementations decide the concrete cache backend (the binary uses an
-/// in-memory `moka` cache; tests may prefer a no-op or deterministic
-/// implementation). `name` identifies the logical cache (e.g.
-/// `"session_items"`) and `ttl` is the requested expiry for entries.
-pub trait CacheFactory: Clone {
-    /// Create a new cache named `name` with entries expiring after `ttl`.
-    fn new_cache<K, V>(&self, name: &str, ttl: Duration) -> Arc<dyn Store<K, V>>
-    where
-        K: Hash + Eq + Clone + Send + Sync + 'static,
-        V: Clone + Send + Sync + 'static;
-}
 
 /// Adapts [`SessionRepo`] so [`SessionMiddleware`] can load / persist the
 /// request-scoped [`User`] identity from the sessions table.

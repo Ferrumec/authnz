@@ -20,7 +20,7 @@ use authnz::{
     proxy,
 };
 use actixutils::locals::CacheFactory;
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use std::sync::Arc;
 use std::time::Duration;
 use infra::Infrastructure;

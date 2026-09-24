@@ -206,9 +206,9 @@ dependencies = [
 
 [[package]]
 name = "actixutils"
-version = "0.6.8"
+version = "0.7.0-a"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "99784d1231f50b493684bde1a0988df72a3d453c3b5ceea05687a3dcda7cb8a0"
+checksum = "2020852eeb1b890aca54b367ccf489e95604e2a5dcd6f51ee99a1d18e130f4fa"
 dependencies = [
  "actix-web",
  "anyhow",
@@ -426,21 +426,19 @@ version = "0.1.2"
 dependencies = [
  "actix-web",
  "actixutils",
- "anyhow",
  "async-trait",
  "awc",
  "base64 0.22.1",
  "bcrypt",
  "chrono",
- "dotenv",
+ "dotenvy",
  "futures",
  "futures-util",
  "infra",
  "ipnet",
  "ipnetwork",
  "moka",
- "rand 0.8.7",
- "rust_decimal",
+ "rand 0.10.2",
  "serde",
  "serde_json",
  "sha2 0.10.9",
@@ -1216,12 +1214,6 @@ dependencies = [
  "quote",
  "syn 3.0.3",
 ]
-
-[[package]]
-name = "dotenv"
-version = "0.15.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "77c90badedccf4105eca100756a0b1289e191f6fcbdadd3cee1d2f614f97da8f"
 
 [[package]]
 name = "dotenvy"
@@ -3654,9 +3646,9 @@ dependencies = [
 
 [[package]]
 name = "typed-eventbus"
-version = "0.2.1"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d1468e92dbefc3fa95631c8fc4a08e7d0d96e257e799d082d34cdfbb0e6d660f"
+checksum = "584ee028c9bd9fe444c354d7fdd69ccffe41d7c5b52009d14942e87550da1c50"
 dependencies = [
  "async-nats",
  "async-trait",
@@ -3803,9 +3795,9 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "viewset"
-version = "0.4.1"
+version = "0.4.3-a"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "399d3e473b99dfb830f870c924f042cebd3f2fcb872799ea8ee30734c9402060"
+checksum = "13f629f43b0e321d3ca1bf2fe73fdd9d1f643d1a8377bba1e1a14d25c6d9bcb1"
 dependencies = [
  "actix-web",
  "actixutils",

@@ -6,17 +6,16 @@
 //!   • The raw token is returned to the caller exactly once and never stored.
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use rand::RngCore;
-use rand::rngs::OsRng;
+use rand::rng;
 use sha2::{Digest, Sha256};
-
+use rand::RngExt;
 /// Generate a cryptographically secure random token.
 ///
 /// Returns a 43-character URL-safe base64 string (256 bits of entropy).
 /// This value is returned to the client and **must not** be persisted.
 pub fn generate_raw_token() -> String {
     let mut bytes = [0u8; 32];
-    OsRng.fill_bytes(&mut bytes);
+    rng().fill(&mut bytes);
     URL_SAFE_NO_PAD.encode(bytes)
 }
 

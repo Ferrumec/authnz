@@ -1,9 +1,9 @@
 use crate::authn::{auth2::random_token, domain::user::UserService};
 use moka::future::Cache;
-use rand::Rng;
-use serde::Serialize;
+use rand::RngExt;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use typed_eventbus::Publishable;
+use typed_eventbus::EventType;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]
@@ -52,7 +52,7 @@ pub struct PasswdlessService {
 
 fn random_otp() -> u32 {
     let mut rng = rand::prelude::ThreadRng::default();
-    rng.gen_range(100000..999999)
+    rng.random_range(100000..999999)
 }
 
 async fn release_pair(email: Uuid, caches: &Caches) -> ChallengeRequested {
@@ -131,13 +131,13 @@ impl PasswdlessService {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ChallengeRequested {
     token: u32,
     link: String,
     nonce: String,
 }
 
-impl Publishable for ChallengeRequested {
+impl EventType for ChallengeRequested {
     const SUBJECT: &'static str = "auth.2fa.challenge.requested";
 }

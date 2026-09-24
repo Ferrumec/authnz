@@ -15,24 +15,24 @@ use crate::authn::domain::user::{
 
 use crate::authn::admin::{User, UserRepository};
 use chrono::Utc;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
-use typed_eventbus::Publishable;
+use typed_eventbus::EventType;
 use uuid::Uuid;
 use viewset::Repository;
 
 extern crate zxcvbn;
 use zxcvbn::zxcvbn;
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 struct UserCreated {
     email: String,
     phone: Option<String>,
     country: Option<String>,
 }
 
-impl Publishable for UserCreated {
+impl EventType for UserCreated {
     const SUBJECT: &'static str = "auth.user.created";
 }
 
@@ -40,13 +40,13 @@ impl Publishable for UserCreated {
 /// (unhashed) token exactly once, for delivery by whatever subscribes
 /// to this subject (e.g. an email service) — never logged, never
 /// persisted in cleartext.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct PasswordResetRequested {
     pub email: String,
     pub token: String,
 }
 
-impl Publishable for PasswordResetRequested {
+impl EventType for PasswordResetRequested {
     const SUBJECT: &'static str = "auth.password_reset.requested";
 }
 // ── AuthService ───────────────────────────────────────────────────────────────
