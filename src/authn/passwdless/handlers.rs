@@ -11,9 +11,9 @@ use actix_web::{
     web::{self, ServiceConfig},
 };
 use actixutils::locals::Context;
+use ferrumec::event::Event;
 use serde::Deserialize;
 use std::fmt::Display;
-use typed_eventbus::Event;
 
 fn translate_error(error: PasswdlessError) -> HttpResponse {
     match error {

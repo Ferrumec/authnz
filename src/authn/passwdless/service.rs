@@ -1,9 +1,9 @@
 use crate::authn::{auth2::random_token, domain::user::UserService};
+use ferrumec::event::EventType;
 use moka::future::Cache;
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use typed_eventbus::EventType;
 use uuid::Uuid;
 
 #[derive(Debug, Clone)]

@@ -19,7 +19,7 @@ use crate::models::User;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{HttpRequest, HttpResponse, Responder, web};
 use actixutils::locals::Context;
-use typed_eventbus::Event;
+use ferrumec::event::Event;
 use uuid::Uuid;
 use validator::Validate;
 

@@ -1,4 +1,4 @@
-use actixutils::Store;
+use ferrumec::Store;
 use std::sync::Arc;
 use std::time::Duration;
 use uuid::Uuid;

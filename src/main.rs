@@ -16,16 +16,14 @@
 use actix_web::{App, HttpServer, web};
 use actixutils::middleware::PermissionSet;
 use authnz::{
-    AuthnModule, AuthzModule, Proxy, SessionMiddleware, SessionRepo, SessionService,
-    proxy,
+    AuthnModule, AuthzModule, Proxy, SessionMiddleware, SessionRepo, SessionService, proxy,
 };
-use actixutils::locals::CacheFactory;
 use dotenvy::dotenv;
+use ferrumec::cache::CacheFactory;
+use infra::Infrastructure;
 use std::sync::Arc;
 use std::time::Duration;
-use infra::Infrastructure;
 use tracing_subscriber::{EnvFilter, fmt, prelude::*};
-
 
 /// Loads configuration, connects to Postgres, and serves the authn/authz
 /// HTTP app on `BIND_ADDR` (default `127.0.0.1:8080`). Panics on missing
@@ -38,12 +36,12 @@ async fn main() -> std::io::Result<()> {
         .with(fmt::layer())
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()))
         .init();
-    
-    
 
-    let infra = Infrastructure::from_env().await.expect("could not connect to infrastructures");
+    let infra = Infrastructure::from_env()
+        .await
+        .expect("could not connect to infrastructures");
     let cache_factory = infra.redis.clone();
-    let cache = cache_factory.new_cache("session_items",Duration::from_mins(30));
+    let cache = cache_factory.new_cache("session_items", Duration::from_mins(30));
     let session_repo: SessionRepo = SessionRepo::new(infra.postgres.clone(), cache);
     let session_service = web::Data::new(SessionService::new(session_repo.clone()));
     let store = Arc::new(session_repo);

@@ -1,6 +1,6 @@
-use actixutils::locals::CacheFactory;
 use crate::authz::admin::AbsoluteRepo;
 use crate::authz::models::PermissionReq;
+use ferrumec::cache::CacheFactory;
 use sqlx::{Error as SqlxError, Pool, Postgres};
 use std::sync::Arc;
 use uuid::Uuid;

@@ -6,9 +6,9 @@
 //!   • The raw token is returned to the caller exactly once and never stored.
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use rand::RngExt;
 use rand::rng;
 use sha2::{Digest, Sha256};
-use rand::RngExt;
 /// Generate a cryptographically secure random token.
 ///
 /// Returns a 43-character URL-safe base64 string (256 bits of entropy).

@@ -34,7 +34,7 @@ use actix_web::{
 
 use super::session::Session;
 use crate::models::User as Sess;
-use actixutils::Store;
+use ferrumec::Store;
 use futures_util::future::LocalBoxFuture;
 use std::{
     future::{Ready, ready},

@@ -1,5 +1,5 @@
-use actixutils::locals::CacheFactory;
-use actixutils::Store;
+use ferrumec::Store;
+use ferrumec::cache::CacheFactory;
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use sqlx::{Pool, Postgres};

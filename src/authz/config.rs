@@ -1,9 +1,9 @@
-use actixutils::locals::CacheFactory;
 use crate::authz::admin::{AbsoluteRepo, AbsoluteViewSet, create_absolute_viewset};
 use crate::authz::{handlers::*, models::AppState, services::Service};
 use crate::models::User;
 use actix_web::web::{self, ServiceConfig};
 use actixutils::middleware::{PermissionSet, Permissions};
+use ferrumec::cache::CacheFactory;
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 use viewset::ViewSet;

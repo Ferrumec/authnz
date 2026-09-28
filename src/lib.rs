@@ -11,7 +11,7 @@
 //! - [`proxy`] — upstream reverse-proxy identity assertion.
 //!
 //! The binary entry point (`main.rs`) supplies a concrete
-//! [`actixutils::locals::CacheFactory`] (the `redis::aio::ConnectionManager`
+//! [`ferrumec::cache::CacheFactory`] (the `redis::aio::ConnectionManager`
 //! from `infra::Infrastructure`) and wires the modules into an `actix-web`
 //! `HttpServer`.
 
@@ -27,9 +27,9 @@ pub use authz::Module as AuthzModule;
 pub use models::User;
 pub use proxy::{Proxy, proxy};
 
-use actixutils::Store;
 use actixutils::middleware::Principal;
 use authn::SessionRepo as DomainSessionRepo;
+use ferrumec::Store;
 use models::User as ActiveUser;
 use std::error::Error;
 use uuid::Uuid;

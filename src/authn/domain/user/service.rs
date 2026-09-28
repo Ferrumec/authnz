@@ -15,10 +15,10 @@ use crate::authn::domain::user::{
 
 use crate::authn::admin::{User, UserRepository};
 use chrono::Utc;
+use ferrumec::event::EventType;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
-use typed_eventbus::EventType;
 use uuid::Uuid;
 use viewset::Repository;
 

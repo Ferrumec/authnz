@@ -1,5 +1,4 @@
 use super::SessionMiddleware;
-use actixutils::locals::CacheFactory;
 use crate::SessionRepo;
 use crate::authn::admin::admin_session_viewset;
 use crate::authn::admin::{UserRepository, UserViewSet, create_viewset};
@@ -15,6 +14,7 @@ use actix_web::web::{self, ServiceConfig};
 use actixutils::HS256Signer;
 use actixutils::middleware::{PermissionSet, Permissions, ResponseEqualizer};
 use actixutils::{Identity, Sign};
+use ferrumec::cache::CacheFactory;
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 use std::time::Duration;

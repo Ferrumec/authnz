@@ -1,7 +1,7 @@
-use actixutils::locals::CacheFactory;
 use crate::authn::admin::UserRepository;
 use crate::authn::domain::user::{UserService, token::generate_raw_token};
 use crate::authn::passwdless::PasswdlessService;
+use ferrumec::cache::CacheFactory;
 use sqlx::Pool;
 use std::sync::Arc;
 #[cfg(feature = "passkey")]

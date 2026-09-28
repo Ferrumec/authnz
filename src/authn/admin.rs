@@ -1,7 +1,7 @@
-use actixutils::locals::CacheFactory;
 use crate::models::User as ActiveUser;
-use actixutils::Store;
 use chrono::{DateTime, Utc};
+use ferrumec::Store;
+use ferrumec::cache::CacheFactory;
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool, Postgres, Transaction};

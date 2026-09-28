@@ -17,13 +17,14 @@ serde_json = "1.0.145"
 sha2 = "0.10.9"
 futures = "0.3.31"
 moka = { version = "0.12.13", features = ["future"] }
-actixutils = { version = "0.7.0-a", features = ["es", "jwt", "redis"] }
+actixutils = { version = "0.7.0-b", features = ["jwt"] }
 typed-eventbus = "0.4"
 webauthn-rs = {version="0.5.4", optional=true}
 tracing = "0.1.44"
 async-trait = "0.1.89"
-viewset = "0.4.3-a"
+viewset = "0.4.3-b"
 awc = "3.8.2"
+ferrumec = { version = "0.1.0", features = ["distributed"] }
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 zxcvbn = "3.1.1"
 validator = { version = "0.20.0", features = ["derive"] }

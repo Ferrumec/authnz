@@ -11,7 +11,10 @@ use sqlx::PgPool;
 
 #[get("/health")]
 pub async fn health(pool: web::Data<PgPool>) -> HttpResponse {
-    let db_ok = sqlx::query("SELECT 1").execute(pool.get_ref()).await.is_ok();
+    let db_ok = sqlx::query("SELECT 1")
+        .execute(pool.get_ref())
+        .await
+        .is_ok();
 
     if db_ok {
         HttpResponse::Ok().json(serde_json::json!({ "status": "ok", "db": db_ok }))
