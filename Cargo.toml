@@ -18,7 +18,6 @@ sha2 = "0.10.9"
 futures = "0.3.31"
 moka = { version = "0.12.13", features = ["future"] }
 actixutils = { version = "0.7.0-b", features = ["jwt"] }
-typed-eventbus = "0.4"
 webauthn-rs = {version="0.5.4", optional=true}
 tracing = "0.1.44"
 async-trait = "0.1.89"
