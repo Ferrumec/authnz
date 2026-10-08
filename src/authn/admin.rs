@@ -8,7 +8,7 @@ use sqlx::{FromRow, PgPool, Postgres, Transaction};
 use std::time::Duration;
 use std::{net::IpAddr, sync::Arc};
 use uuid::Uuid;
-use viewset::{ApiError, DefaultViewSet, Entity, Repository, Service};
+use viewset::{ApiError, DefaultViewSet, Entity, Repository, Service, DefaultRepo};
 
 #[derive(Entity, FromRow, Clone, Serialize, Deserialize)]
 #[entity(update = "UpdateUser")]
@@ -76,38 +76,9 @@ impl NewSession {
     }
 }
 
-#[derive(Clone)]
-pub struct SessionRepo {
-    pool: PgPool,
-    cache: Arc<dyn Store<Uuid, Session>>,
-}
 
-impl SessionRepo {
-    pub fn new(pool: PgPool, cache: Arc<dyn Store<Uuid, Session>>) -> Self {
-        Self { pool, cache }
-    }
+pub type SessionRepo = DefaultRepo<Session>;
 
-    /// IDs of every session row belonging to `sub`, straight from the
-    /// database (bypassing the entity cache, which is keyed by session
-    /// id and has no per-user index). Used to bulk-revoke a user's
-    /// sessions via the normal cache-invalidating `Repository::delete`.
-    pub async fn session_ids_for_user(&self, sub: &Uuid) -> Result<Vec<Uuid>, sqlx::Error> {
-        sqlx::query_scalar!("SELECT id FROM sessions WHERE sub = $1", sub)
-            .fetch_all(&self.pool)
-            .await
-    }
-}
-
-impl Repository for SessionRepo {
-    type Entity = Session;
-    fn database(&self) -> &PgPool {
-        &self.pool
-    }
-
-    fn cache(&self) -> Arc<dyn Store<Uuid, Session> + Send + Sync> {
-        self.cache.clone()
-    }
-}
 
 pub struct SessionService {
     repo: Arc<SessionRepo>,
@@ -154,45 +125,14 @@ pub fn admin_session_viewset(db: Arc<SessionRepo>) -> Arc<AdminSessionViewSet> {
 /// (uncached) behavior. Built once by [`crate::authn::config::AuthModule::new`]
 /// and shared between the `/admin/users` viewset, the domain
 /// [`crate::authn::domain::user::UserService`], and [`crate::authn::domain::JwtService`]
-/// so all three see a consistent, cached view of the `users` table.
-pub struct UserRepository {
-    pub pool: PgPool,
-    pub item_cache: Arc<dyn Store<Uuid, User>>,
-    pub list_cache: Arc<dyn Store<u64, (Vec<User>, i64)>>,
-}
 
-impl UserRepository {
-    /// Builds a new repository, creating its caches via `cf`.
-    pub fn new<Cf: CacheFactory + 'static>(pool: PgPool, cf: Cf) -> Self {
-        Self {
-            pool,
-            item_cache: cf.new_cache("user_items", Duration::from_mins(60)),
-            list_cache: cf.new_cache("user_lists", Duration::from_mins(30)),
-        }
-    }
-}
+pub type UserRepository = DefaultRepo<User>;
 
-impl Repository for UserRepository {
-    type Entity = User;
-    fn list_cache(&self) -> Arc<dyn Store<u64, (Vec<User>, i64)> + Send + Sync> {
-        self.list_cache.clone()
-    }
-    fn cache(&self) -> Arc<dyn Store<Uuid, User> + Send + Sync> {
-        self.item_cache.clone()
-    }
+pub struct UserService{repo:Arc<UserRepository>}
 
-    fn database(&self) -> &PgPool {
-        &self.pool
-    }
-}
-
-pub struct UserService {
-    repo: Arc<UserRepository>,
-}
-
-impl UserService {
-    pub fn new(repo: Arc<UserRepository>) -> Self {
-        Self { repo }
+impl UserService{
+    fn new(repo:Arc<UserRepository>)->Self{
+        Self{repo}
     }
 }
 

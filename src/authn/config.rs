@@ -13,7 +13,7 @@ use actix_web::web::{self, ServiceConfig};
 use actixutils::HS256Signer;
 use actixutils::middleware::{ ResponseEqualizer};
 use actixutils::{Identity, Sign};
-use ferrumec::cache::CacheFactory;
+use ferrumec::{Module,Infra,CacheFactory};
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 use std::time::Duration;
@@ -28,34 +28,35 @@ pub struct AuthModule {
      user_viewset: Arc<UserViewSet>,
 }
 
-impl AuthModule {
-    pub async fn new<Cf: CacheFactory + Clone + 'static>(
-        pool: Pool<Postgres>,
-        session_store: Arc<SessionRepo>,
-        cache_factory: Cf,
-    ) -> Self {
+impl Module for AuthModule {
+     async fn new(
+        infra: impl Infra,
+    ) -> Result<Self,Box<dyn std::error::Error>> {
         // Built once and shared (cache included) across the domain
         // `UserService`, `JwtService`, and the `/admin/users` viewset, so
         // all three see a consistent, cached view of the `users` table —
         // mirroring how the groups service shares one repository per
         // entity across its handlers and admin viewsets.
+        let pool = infra.database();
+        let cache_factory = infra.cache_factory();
+        let session_store = Arc::new(SessionRepo::new(pool.clone(),cache_factory.clone()));
         let user_repo = Arc::new(UserRepository::new(pool.clone(), cache_factory.clone()));
-        let app_state = AppState::new(pool.clone(), user_repo.clone(), cache_factory.clone()).await;
+        let app_state = AppState::new(pool.clone(), user_repo.clone(), cache_factory).await;
         let user_service = web::Data::new(UserService::new(pool.clone(), user_repo.clone()));
         let secret = std::env::var("signer.secret").expect("signer.secret not set");
         let aud = std::env::var("signer.aud").expect("signer.aud not set");
         let signer: Arc<dyn Sign<Identity>> = Arc::new(HS256Signer::new(aud, secret));
         let jwt = web::Data::new(JwtService::new(pool.clone(), signer, user_repo.clone()));
         let user_viewset = create_viewset(user_repo);
-        Self {
+        Ok(Self {
             state: web::Data::new(app_state),
             session_store,
             jwt,
             user_service,
             user_viewset,
-        }
+        })
     }
-    pub fn config(&self, cfg: &mut ServiceConfig, namespace: &str) {
+    fn configure(self:Arc<Self>, cfg: &mut ServiceConfig, namespace: &str) {
         let session_middleware: SessionMiddleware<ActiveUser> =
             SessionMiddleware::new(self.session_store.clone());
         #[cfg_attr(not(feature = "passkey"), allow(unused_mut))]

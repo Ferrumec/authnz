@@ -17,7 +17,7 @@ use crate::authn::session::SessionParams;
 use crate::models::User;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{HttpRequest, HttpResponse, Responder, web};
-use actixutils::locals::Context;
+use actixutils::{filters,locals::Context};
 use ferrumec::event::Event;
 use uuid::Uuid;
 use validator::Validate;
@@ -312,17 +312,8 @@ pub async fn get_sessions(
     // The generic viewset list path can return a paginated envelope that
     // clients cannot index as `sessions[0]["id"]`.
     let sub = session.read().await.sub;
-    match repo.session_ids_for_user(&sub).await {
-        Ok(ids) => {
-            let mut out = Vec::with_capacity(ids.len());
-            for id in ids {
-                match repo.retrieve(&id).await {
-                    Ok(s) => out.push(s),
-                    Err(e) => tracing::warn!("skipping session {id} while listing: {e}"),
-                }
-            }
-            HttpResponse::Ok().json(out)
-        }
+    match repo.list(filters!(sub)).await{
+        Ok((sessions,count)) =>HttpResponse::Ok().json(sessions),
         Err(e) => {
             tracing::error!("error in listing sessions: {e}");
             HttpResponse::InternalServerError().finish()

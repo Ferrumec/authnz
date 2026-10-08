@@ -18,10 +18,10 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub async fn new<Cf: CacheFactory + 'static>(
+    pub async fn new(
         pool: Pool<sqlx::Postgres>,
         user_repo: Arc<UserRepository>,
-        #[cfg_attr(not(feature = "passkey"), allow(unused_variables))] cache_factory: Cf,
+        #[cfg_attr(not(feature = "passkey"), allow(unused_variables))] cache_factory: impl CacheFactory,
     ) -> Self {
         let user_service = UserService::new(pool.clone(), user_repo);
         let passwdless_service = PasswdlessService::new(user_service.clone());

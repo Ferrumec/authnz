@@ -21,7 +21,6 @@ pub mod models;
 pub use authn::{Module as AuthnModule, Session, SessionMiddleware, SessionRepo, SessionService};
 pub use models::User;
 
-use actixutils::middleware::Principal;
 use authn::SessionRepo as DomainSessionRepo;
 use ferrumec::Store;
 use models::User as ActiveUser;
@@ -63,6 +62,10 @@ impl Store<Uuid, ActiveUser> for DomainSessionRepo {
                 e.to_string(),
             ))),
         }
+    }
+    
+    async fn clear(&self)->Result<(),Box<dyn Error>>{
+        Ok(())
     }
 }
 
