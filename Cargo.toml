@@ -18,7 +18,7 @@ sha2 = "0.10.9"
 futures = "0.3.31"
 moka = { version = "0.12.13", features = ["future"] }
 actixutils = { version = "0.8", features = ["jwt"] }
-webauthn-rs = {version="0.5.4", optional=true}
+webauthn-rs = { version = "0.5.4", optional = true, features = ["danger-allow-state-serialisation"] }
 tracing = "0.1.44"
 async-trait = "0.1.89"
 viewset = "0.5"
@@ -35,4 +35,5 @@ ipnetwork = { version = "0.21.1", features = ["serde"] }
 
 [features]
 passkey = ["webauthn-rs"]
+webauthn-rs = ["dep:webauthn-rs"]
 

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT passkey_data as \"passkey_data!\" FROM passkey_credentials WHERE user_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "passkey_data!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "passkey_credentials",
+            "name": "passkey_data"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1e6b56f95cfa902edf33f52eff67014fba4c236592733fa661449f5ad6a58cfb"
+}

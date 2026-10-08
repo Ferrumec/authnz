@@ -7,7 +7,6 @@ use crate::authn::{
     handlers::{auth_error_to_response, session_cookie},
     passkey::{error::ErrorResponse, models::UsernameRequest},
 };
-use crate::authz::Service as AuthzService;
 use crate::models::User;
 use actix_web::{HttpResponse, web};
 use webauthn_rs::prelude::PublicKeyCredential;
@@ -74,7 +73,6 @@ pub async fn finish(
     query: web::Query<UsernameRequest>,
     repo: web::Data<CredsRepo>,
     sess: web::Data<SessionService>,
-    authz: web::Data<AuthzService>,
     state: web::Data<AppState>,
     params: SessionParams,
 ) -> HttpResponse {
@@ -129,11 +127,7 @@ pub async fn finish(
         Err(e) => tracing::warn!("passkey login/finish: could not reload credentials: {e}"),
     }
 
-    let role = match authz.get_role(&user.id).await {
-        Ok(u) => u,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
-    };
-    let user = User::new(user, role);
+    let user = User::new(user);
 
     let sess_id = match sess.issue_session(user, params).await {
         Ok(sess_id) => sess_id,

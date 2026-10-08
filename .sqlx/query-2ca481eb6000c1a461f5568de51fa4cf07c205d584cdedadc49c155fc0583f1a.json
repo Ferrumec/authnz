@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE grants SET role = $1 WHERE to_id = $2",
+  "query": "DELETE FROM passkey_credentials WHERE id = $1 AND user_id = $2",
   "describe": {
     "columns": [],
     "parameters": {
@@ -11,5 +11,5 @@
     },
     "nullable": []
   },
-  "hash": "1ec1bb8afd333e5e4f4288b658236f9ab6b36b9dc9ac7617c2146c7e4ae0ec0f"
+  "hash": "2ca481eb6000c1a461f5568de51fa4cf07c205d584cdedadc49c155fc0583f1a"
 }
