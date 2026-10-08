@@ -16,16 +16,10 @@
 //! `HttpServer`.
 
 pub mod authn;
-pub mod authz;
-pub mod health;
 pub mod models;
-pub mod proxy;
 
 pub use authn::{Module as AuthnModule, Session, SessionMiddleware, SessionRepo, SessionService};
-pub use authz::Module as AuthzModule;
-//pub use health::health;
 pub use models::User;
-pub use proxy::{Proxy, proxy};
 
 use actixutils::middleware::Principal;
 use authn::SessionRepo as DomainSessionRepo;
@@ -48,7 +42,6 @@ impl Store<Uuid, ActiveUser> for DomainSessionRepo {
                 sub: session.sub,
                 email: session.email,
                 username: session.username,
-                role: session.role.as_u128(),
                 expires_at: session.expires_at,
             })),
             Err(viewset::ApiError::NotFound) => Ok(None),
@@ -73,8 +66,3 @@ impl Store<Uuid, ActiveUser> for DomainSessionRepo {
     }
 }
 
-impl Principal for ActiveUser {
-    fn role(&self) -> u128 {
-        self.role
-    }
-}

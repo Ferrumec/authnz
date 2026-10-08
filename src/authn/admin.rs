@@ -45,7 +45,6 @@ pub struct Session {
     pub sub: Uuid,
     pub username: String,
     pub email: String,
-    pub role: Uuid,
     pub expires_at: DateTime<Utc>,
     pub ip_address: IpNetwork,
 }
@@ -55,7 +54,6 @@ pub struct NewSession {
     pub sub: Uuid,
     pub username: String,
     pub email: String,
-    pub role: Uuid,
     pub expires_at: DateTime<Utc>,
     pub ip_address: IpNetwork,
 }
@@ -66,7 +64,6 @@ impl NewSession {
             sub,
             username,
             email,
-            role,
             expires_at,
         } = value;
         Self {
@@ -75,7 +72,6 @@ impl NewSession {
             email,
             expires_at,
             ip_address: ip_address.into(),
-            role: Uuid::from_u128(role),
         }
     }
 }

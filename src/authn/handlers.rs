@@ -14,7 +14,6 @@ use crate::authn::models::{
 };
 use crate::authn::session::Session;
 use crate::authn::session::SessionParams;
-use crate::authz::Service as AuthzService;
 use crate::models::User;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{HttpRequest, HttpResponse, Responder, web};
@@ -72,7 +71,6 @@ pub async fn login(
     svc: web::Data<UserService>,
     sess: web::Data<SessionService>,
     req: web::Json<LoginRequest>,
-    authz: web::Data<AuthzService>,
     params: SessionParams,
 ) -> impl Responder {
     let cmd = PasswordLoginCmd {
@@ -85,14 +83,8 @@ pub async fn login(
         Err(e) => return auth_error_to_response(e),
     };
 
-    let role = match authz.get_role(&user.id).await {
-        Ok(u) => u,
-        Err(e) => {
-            tracing::error!("get_role failed during login: {e}");
-            return HttpResponse::InternalServerError().finish();
-        }
-    };
-    let user = User::new(user, role);
+    
+    let user = User::new(user);
 
     let sess_id = match sess.issue_session(user, params).await {
         Ok(sess_id) => sess_id,
@@ -106,7 +98,6 @@ pub async fn username_login(
     svc: web::Data<UserService>,
     req: web::Json<LoginRequest>,
     sess: web::Data<SessionService>,
-    authz: web::Data<AuthzService>,
     params: SessionParams,
 ) -> impl Responder {
     let cmd = PasswordLoginCmd {
@@ -118,16 +109,9 @@ pub async fn username_login(
         Ok(user) => user,
         Err(e) => return auth_error_to_response(e),
     };
+    
 
-    let role = match authz.get_role(&user.id).await {
-        Ok(u) => u,
-        Err(e) => {
-            tracing::error!("get_role failed during login: {e}");
-            return HttpResponse::InternalServerError().finish();
-        }
-    };
-
-    let user = User::new(user, role);
+    let user = User::new(user);
 
     let sess_id = match sess.issue_session(user, params).await {
         Ok(sess_id) => sess_id,
@@ -162,7 +146,6 @@ pub async fn logout(sess: web::Data<SessionService>, req: HttpRequest) -> impl R
 pub async fn change_password(
     svc: web::Data<UserService>,
     sess: web::Data<SessionService>,
-    authz: web::Data<AuthzService>,
     jwt: web::Data<JwtService>,
     user_session: Session<User>,
     req: web::Json<ChangePasswordRequest>,
@@ -189,14 +172,8 @@ pub async fn change_password(
                 Ok(u) => u,
                 Err(e) => return auth_error_to_response(e),
             };
-            let role = match authz.get_role(&user_id).await {
-                Ok(r) => r,
-                Err(e) => {
-                    tracing::error!("get_role failed after password change: {e}");
-                    return HttpResponse::InternalServerError().finish();
-                }
-            };
-            let sess_id = match sess.issue_session(User::new(user, role), params).await {
+            
+            let sess_id = match sess.issue_session(User::new(user), params).await {
                 Ok(id) => id,
                 Err(e) => return auth_error_to_response(e),
             };

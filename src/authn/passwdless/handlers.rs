@@ -4,7 +4,6 @@ use crate::authn::domain::user::UserService;
 use crate::authn::handlers::session_cookie;
 use crate::authn::session::SessionParams;
 use crate::authn::{auth2::AppState, passwdless::PasswdlessError};
-use crate::authz::Service as AuthzService;
 use crate::models::User;
 use actix_web::{
     HttpResponse, Responder, ResponseError, get, post,
@@ -114,7 +113,6 @@ async fn confirm(
     token: web::Path<String>,
     svc: web::Data<UserService>,
     sess: web::Data<SessionService>,
-    authz: web::Data<AuthzService>,
     params: SessionParams,
 ) -> impl Responder {
     let token = token.into_inner();
@@ -135,11 +133,8 @@ async fn confirm(
     if let Err(e) = svc.repo.update(&user_id, update).await {
         tracing::error!("failed to set email confirmed: {e}")
     };
-    let role = match authz.get_role(&user_id).await {
-        Ok(u) => u,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
-    };
-    let user = User::new(user, role);
+    
+    let user = User::new(user);
     let sess_id = match sess.issue_session(user, params).await {
         Ok(sess_id) => sess_id,
         Err(_e) => return HttpResponse::InternalServerError().finish(),
@@ -154,7 +149,6 @@ async fn confirm_token(
     token: web::Json<Token>,
     svc: web::Data<UserService>,
     sess: web::Data<SessionService>,
-    authz: web::Data<AuthzService>,
     params: SessionParams,
 ) -> impl Responder {
     let token = token.into_inner();
@@ -179,11 +173,8 @@ async fn confirm_token(
         tracing::error!("failed to set email confirmed: {e}")
     };
 
-    let role = match authz.get_role(&user_id).await {
-        Ok(u) => u,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
-    };
-    let user = User::new(user, role);
+    
+    let user = User::new(user);
 
     let sess_id = match sess.issue_session(user, params).await {
         Ok(sess_id) => sess_id,

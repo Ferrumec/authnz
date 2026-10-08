@@ -7,12 +7,11 @@ use crate::authn::domain::user::UserService;
 #[cfg(feature = "passkey")]
 use crate::authn::passkey;
 use crate::authn::{auth2::AppState, handlers, passwdless::config, user_id::username2userid};
-use crate::authz::Service as AuthzService;
 use crate::models::User as ActiveUser;
 use crate::models::User;
 use actix_web::web::{self, ServiceConfig};
 use actixutils::HS256Signer;
-use actixutils::middleware::{PermissionSet, Permissions, ResponseEqualizer};
+use actixutils::middleware::{ ResponseEqualizer};
 use actixutils::{Identity, Sign};
 use ferrumec::cache::CacheFactory;
 use sqlx::{Pool, Postgres};
@@ -24,18 +23,15 @@ use viewset::ViewSet;
 pub struct AuthModule {
     state: web::Data<AppState>,
     session_store: Arc<SessionRepo>,
-    permissions: PermissionSet,
     jwt: web::Data<JwtService>,
     user_service: web::Data<UserService>,
-    authz: web::Data<AuthzService>,
-    user_viewset: Arc<UserViewSet>,
+     user_viewset: Arc<UserViewSet>,
 }
 
 impl AuthModule {
     pub async fn new<Cf: CacheFactory + Clone + 'static>(
         pool: Pool<Postgres>,
         session_store: Arc<SessionRepo>,
-        permissions: PermissionSet,
         cache_factory: Cf,
     ) -> Self {
         // Built once and shared (cache included) across the domain
@@ -45,7 +41,6 @@ impl AuthModule {
         // entity across its handlers and admin viewsets.
         let user_repo = Arc::new(UserRepository::new(pool.clone(), cache_factory.clone()));
         let app_state = AppState::new(pool.clone(), user_repo.clone(), cache_factory.clone()).await;
-        let authz = web::Data::new(AuthzService::new(pool.clone(), cache_factory.clone()));
         let user_service = web::Data::new(UserService::new(pool.clone(), user_repo.clone()));
         let secret = std::env::var("signer.secret").expect("signer.secret not set");
         let aud = std::env::var("signer.aud").expect("signer.aud not set");
@@ -55,10 +50,8 @@ impl AuthModule {
         Self {
             state: web::Data::new(app_state),
             session_store,
-            permissions,
             jwt,
             user_service,
-            authz,
             user_viewset,
         }
     }
@@ -73,7 +66,6 @@ impl AuthModule {
             .app_data(self.state.clone())
             .app_data(self.jwt.clone())
             .app_data(self.user_service.clone())
-            .app_data(self.authz.clone())
             .app_data(web::Data::new(self.session_store.clone()))
             .service(username2userid)
             .service(
@@ -115,7 +107,6 @@ impl AuthModule {
                     )
                     .service(
                         web::scope("/admin")
-                            .wrap(Permissions::<User>::new(self.permissions.clone()))
                             .configure(|cfg| self.user_viewset.clone().configure(cfg, "users"))
                             .configure(|cfg| {
                                 admin_session_viewset(self.session_store.clone())
