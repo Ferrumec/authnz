@@ -1,14 +1,11 @@
 use crate::models::User as ActiveUser;
 use chrono::{DateTime, Utc};
-use ferrumec::Store;
-use ferrumec::cache::CacheFactory;
 use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, PgPool, Postgres, Transaction};
-use std::time::Duration;
+use sqlx::{FromRow, Postgres, Transaction};
 use std::{net::IpAddr, sync::Arc};
 use uuid::Uuid;
-use viewset::{ApiError, DefaultViewSet, Entity, Repository, Service, DefaultRepo};
+use viewset::{ApiError, DefaultViewSet, Entity, Service, DefaultRepo};
 
 #[derive(Entity, FromRow, Clone, Serialize, Deserialize)]
 #[entity(update = "UpdateUser")]

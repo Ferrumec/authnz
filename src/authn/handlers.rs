@@ -313,7 +313,7 @@ pub async fn get_sessions(
     // clients cannot index as `sessions[0]["id"]`.
     let sub = session.read().await.sub;
     match repo.list(filters!(sub)).await{
-        Ok((sessions,count)) =>HttpResponse::Ok().json(sessions),
+        Ok((sessions,_count)) =>HttpResponse::Ok().json(sessions),
         Err(e) => {
             tracing::error!("error in listing sessions: {e}");
             HttpResponse::InternalServerError().finish()
