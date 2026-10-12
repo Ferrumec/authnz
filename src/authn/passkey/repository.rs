@@ -70,12 +70,14 @@ impl CredsRepo {
             r#"SELECT passkey_data as "passkey_data!" FROM passkey_credentials WHERE user_id = $1"#,
             user_id
         )
-       .fetch_all(&self.pool)
-       .await?;
+        .fetch_all(&self.pool)
+        .await?;
 
         rows.into_iter()
-           .map(|r| serde_json::from_str::<Passkey>(&r.passkey_data).map_err(|_| RepoError::Corrupt))
-           .collect()
+            .map(|r| {
+                serde_json::from_str::<Passkey>(&r.passkey_data).map_err(|_| RepoError::Corrupt)
+            })
+            .collect()
     }
 
     pub async fn update_credential(&self, passkey: &Passkey) -> Result<(), RepoError> {
@@ -106,14 +108,14 @@ impl CredsRepo {
        .await?;
 
         Ok(rows
-           .into_iter()
-           .map(|r| CredentialSummary {
+            .into_iter()
+            .map(|r| CredentialSummary {
                 id: r.id,
                 label: r.label,
                 created_at: r.created_at,
                 last_used_at: r.last_used_at,
             })
-           .collect())
+            .collect())
     }
 
     pub async fn delete_credential(
@@ -126,8 +128,8 @@ impl CredsRepo {
             credential_row_id,
             user_id
         )
-       .execute(&self.pool)
-       .await?;
+        .execute(&self.pool)
+        .await?;
         Ok(result.rows_affected() > 0)
     }
 }

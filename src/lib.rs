@@ -21,7 +21,6 @@ pub mod models;
 pub use authn::{Module as AuthnModule, Session, SessionMiddleware, SessionRepo, SessionService};
 pub use models::User;
 
-use authn::SessionRepo as DomainSessionRepo;
 use ferrumec::Store;
 use models::User as ActiveUser;
 use std::error::Error;
@@ -31,7 +30,7 @@ use viewset::Repository;
 /// Adapts [`SessionRepo`] so [`SessionMiddleware`] can load / persist the
 /// request-scoped [`User`] identity from the sessions table.
 #[async_trait::async_trait]
-impl Store<Uuid, ActiveUser> for DomainSessionRepo {
+impl Store<Uuid, ActiveUser> for SessionRepo {
     async fn get(&self, id: &Uuid) -> Result<Option<ActiveUser>, Box<dyn Error>> {
         // Missing / deleted sessions must be `Ok(None)` so SessionMiddleware
         // can return 401 Unauthorized. Treating NotFound as an error made
@@ -63,9 +62,24 @@ impl Store<Uuid, ActiveUser> for DomainSessionRepo {
             ))),
         }
     }
-    
-    async fn clear(&self)->Result<(),Box<dyn Error>>{
+
+    async fn clear(&self) -> Result<(), Box<dyn Error>> {
         Ok(())
     }
 }
 
+use crate::authn::{Identify, Identity, IdentityResult};
+
+impl Identify for ActiveUser {
+    fn identify(&self) -> IdentityResult {
+        if chrono::Utc::now() > self.expires_at {
+            IdentityResult::Expired
+        } else {
+            IdentityResult::Active(Identity {
+                sub: self.sub,
+                username: self.username.clone(),
+                email: self.email.clone(),
+            })
+        }
+    }
+}

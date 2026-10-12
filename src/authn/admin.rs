@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Postgres, Transaction};
 use std::{net::IpAddr, sync::Arc};
 use uuid::Uuid;
-use viewset::{ApiError, DefaultViewSet, Entity, Service, DefaultRepo};
+use viewset::{ApiError, DefaultRepo, DefaultViewSet, Entity, Service};
 
 #[derive(Entity, FromRow, Clone, Serialize, Deserialize)]
 #[entity(update = "UpdateUser")]
@@ -73,9 +73,7 @@ impl NewSession {
     }
 }
 
-
 pub type SessionRepo = DefaultRepo<Session>;
-
 
 pub struct SessionService {
     repo: Arc<SessionRepo>,
@@ -125,11 +123,13 @@ pub fn admin_session_viewset(db: Arc<SessionRepo>) -> Arc<AdminSessionViewSet> {
 
 pub type UserRepository = DefaultRepo<User>;
 
-pub struct UserService{repo:Arc<UserRepository>}
+pub struct UserService {
+    repo: Arc<UserRepository>,
+}
 
-impl UserService{
-    fn new(repo:Arc<UserRepository>)->Self{
-        Self{repo}
+impl UserService {
+    fn new(repo: Arc<UserRepository>) -> Self {
+        Self { repo }
     }
 }
 

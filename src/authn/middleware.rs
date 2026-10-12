@@ -44,17 +44,32 @@ use std::{
 };
 use uuid::Uuid;
 
+pub struct Identity {
+    pub sub: Uuid,
+    pub username: String,
+    pub email: String,
+}
+
+pub enum IdentityResult {
+    Active(Identity),
+    Expired,
+}
+
+pub trait Identify {
+    fn identify(&self) -> IdentityResult;
+}
+
 /// Middleware factory for cookie-based session storage.
 ///
 /// Construct with [`SessionMiddleware::new`]. Missing, invalid, or expired
 /// session cookies are rejected with `401 Unauthorized`. Customise the cookie
 /// name with [`cookie_name`](Self::cookie_name).
-pub struct SessionMiddleware<S> {
+pub struct SessionMiddleware<S: Identify> {
     store: Arc<dyn Store<Uuid, S>>,
     cookie_name: String,
 }
 
-impl SessionMiddleware<Sess> {
+impl<Sess: Identify> SessionMiddleware<Sess> {
     /// Create a `SessionMiddleware` backed by `store`.
     ///
     /// A request with no session cookie, an invalid `Uuid`, a missing store
@@ -95,7 +110,7 @@ where
 }
 
 /// The inner service produced by [`SessionMiddleware`].
-pub struct SessionMiddlewareService<R, S> {
+pub struct SessionMiddlewareService<R, S: Identify> {
     service: Rc<R>,
     store: Arc<dyn Store<Uuid, S>>,
     cookie_name: String,
@@ -120,7 +135,7 @@ where
         let cookie_name = self.cookie_name.clone();
         let service = self.service.clone();
         Box::pin(async move {
-            let (session_id, session) = match req.cookie(&cookie_name) {
+            match req.cookie(&cookie_name) {
                 Some(cookie) => {
                     let id = match Uuid::parse_str(cookie.value()) {
                         Ok(id) => id,
@@ -135,30 +150,17 @@ where
                         }
                     };
                     // Reject expired sessions
-                    if session_data.expires_at < chrono::Utc::now() {
+                    let IdentityResult::Active(identity) = session_data.identify() else {
                         return Err(error::ErrorUnauthorized("session expired"));
-                    }
-                    req.extensions_mut().insert(session_data.clone());
-                    (id, Session::new(session_data))
+                    };
+                    req.extensions_mut().insert(identity);
+                    let res = service.call(req).await?;
+                    Ok(res)
                 }
                 None => {
                     return Err(error::ErrorUnauthorized("no session"));
                 }
-            };
-
-            let session = Arc::new(session);
-            req.extensions_mut().insert(session.clone());
-
-            let res = service.call(req).await?;
-
-            // Only save if dirty
-            if session.is_dirty() {
-                let session_data = session.read().await;
-                store.set(&session_id, session_data.clone()).await?;
-                session.set_clean(); // reset flag
             }
-
-            Ok(res)
         })
     }
 }

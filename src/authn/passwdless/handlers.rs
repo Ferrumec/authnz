@@ -133,7 +133,7 @@ async fn confirm(
     if let Err(e) = svc.repo.update(&user_id, update).await {
         tracing::error!("failed to set email confirmed: {e}")
     };
-    
+
     let user = User::new(user);
     let sess_id = match sess.issue_session(user, params).await {
         Ok(sess_id) => sess_id,
@@ -173,7 +173,6 @@ async fn confirm_token(
         tracing::error!("failed to set email confirmed: {e}")
     };
 
-    
     let user = User::new(user);
 
     let sess_id = match sess.issue_session(user, params).await {

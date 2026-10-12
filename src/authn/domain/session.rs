@@ -85,10 +85,14 @@ impl SessionService {
     /// are logged and skipped rather than aborting the whole revoke, so one
     /// bad row can't leave the rest of the user's sessions alive.
     pub async fn revoke_all_for_user(&self, sub: &Uuid) -> Result<(), AuthError> {
-        let (sessions,_) = self.store.list(actixutils::filters!(sub)).await?;
+        let (sessions, _) = self.store.list(actixutils::filters!(sub)).await?;
         for session in sessions {
             if let Err(e) = self.store.delete(&session.id).await {
-                tracing::error!("failed to revoke session {0} for user {sub}: {e}", session.id);         }
+                tracing::error!(
+                    "failed to revoke session {0} for user {sub}: {e}",
+                    session.id
+                );
+            }
         }
         Ok(())
     }

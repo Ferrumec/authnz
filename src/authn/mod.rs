@@ -13,4 +13,4 @@ pub use config::AuthModule as Module;
 mod admin;
 pub use admin::{Session, SessionRepo, User};
 pub use domain::SessionService;
-pub use middleware::SessionMiddleware;
+pub use middleware::{Identify, Identity, IdentityResult, SessionMiddleware};

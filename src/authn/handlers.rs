@@ -17,7 +17,7 @@ use crate::authn::session::SessionParams;
 use crate::models::User;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{HttpRequest, HttpResponse, Responder, web};
-use actixutils::{filters,locals::Context};
+use actixutils::{filters, locals::Context};
 use ferrumec::event::Event;
 use uuid::Uuid;
 use validator::Validate;
@@ -83,7 +83,6 @@ pub async fn login(
         Err(e) => return auth_error_to_response(e),
     };
 
-    
     let user = User::new(user);
 
     let sess_id = match sess.issue_session(user, params).await {
@@ -109,7 +108,6 @@ pub async fn username_login(
         Ok(user) => user,
         Err(e) => return auth_error_to_response(e),
     };
-    
 
     let user = User::new(user);
 
@@ -172,7 +170,7 @@ pub async fn change_password(
                 Ok(u) => u,
                 Err(e) => return auth_error_to_response(e),
             };
-            
+
             let sess_id = match sess.issue_session(User::new(user), params).await {
                 Ok(id) => id,
                 Err(e) => return auth_error_to_response(e),
@@ -312,8 +310,8 @@ pub async fn get_sessions(
     // The generic viewset list path can return a paginated envelope that
     // clients cannot index as `sessions[0]["id"]`.
     let sub = session.read().await.sub;
-    match repo.list(filters!(sub)).await{
-        Ok((sessions,_count)) =>HttpResponse::Ok().json(sessions),
+    match repo.list(filters!(sub)).await {
+        Ok((sessions, _count)) => HttpResponse::Ok().json(sessions),
         Err(e) => {
             tracing::error!("error in listing sessions: {e}");
             HttpResponse::InternalServerError().finish()

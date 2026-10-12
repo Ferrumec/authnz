@@ -10,9 +10,9 @@ use crate::authn::{auth2::AppState, handlers, passwdless::config, user_id::usern
 use crate::models::User as ActiveUser;
 use actix_web::web::{self, ServiceConfig};
 use actixutils::HS256Signer;
-use actixutils::middleware::{ ResponseEqualizer};
+use actixutils::middleware::ResponseEqualizer;
 use actixutils::{Identity, Sign};
-use ferrumec::{Module,Infra};
+use ferrumec::{Infra, Module};
 use std::sync::Arc;
 use std::time::Duration;
 use viewset::ViewSet;
@@ -23,13 +23,11 @@ pub struct AuthModule {
     session_store: Arc<SessionRepo>,
     jwt: web::Data<JwtService>,
     user_service: web::Data<UserService>,
-     user_viewset: Arc<UserViewSet>,
+    user_viewset: Arc<UserViewSet>,
 }
 
 impl Module for AuthModule {
-     async fn new(
-        infra: impl Infra,
-    ) -> Result<Self,Box<dyn std::error::Error>> {
+    async fn new(infra: impl Infra) -> Result<Self, Box<dyn std::error::Error>> {
         // Built once and shared (cache included) across the domain
         // `UserService`, `JwtService`, and the `/admin/users` viewset, so
         // all three see a consistent, cached view of the `users` table —
@@ -37,7 +35,7 @@ impl Module for AuthModule {
         // entity across its handlers and admin viewsets.
         let pool = infra.database();
         let cache_factory = infra.cache_factory();
-        let session_store = Arc::new(SessionRepo::new(pool.clone(),cache_factory.clone()));
+        let session_store = Arc::new(SessionRepo::new(pool.clone(), cache_factory.clone()));
         let user_repo = Arc::new(UserRepository::new(pool.clone(), cache_factory.clone()));
         let app_state = AppState::new(pool.clone(), user_repo.clone(), cache_factory).await;
         let user_service = web::Data::new(UserService::new(pool.clone(), user_repo.clone()));
@@ -54,7 +52,7 @@ impl Module for AuthModule {
             user_viewset,
         })
     }
-    fn configure(self:Arc<Self>, cfg: &mut ServiceConfig, namespace: &str) {
+    fn configure(self: Arc<Self>, cfg: &mut ServiceConfig, namespace: &str) {
         let session_middleware: SessionMiddleware<ActiveUser> =
             SessionMiddleware::new(self.session_store.clone());
         #[cfg_attr(not(feature = "passkey"), allow(unused_mut))]
