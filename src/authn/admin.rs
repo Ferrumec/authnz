@@ -1,9 +1,7 @@
-use crate::models::User as ActiveUser;
 use chrono::{DateTime, Utc};
-use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Postgres, Transaction};
-use std::{net::IpAddr, sync::Arc};
+use std::sync::Arc;
 use uuid::Uuid;
 use viewset::{ApiError, DefaultRepo, DefaultViewSet, Entity, Service};
 

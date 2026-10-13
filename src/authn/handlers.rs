@@ -12,7 +12,6 @@ use crate::authn::models::{
     ApiResponse, ChangePasswordRequest, LoginRequest, PasswordResetConfirmRequest,
     PasswordResetRequest, RegisterRequest,
 };
-use crate::authn::session::Session;
 use crate::authn::session::SessionParams;
 use crate::models::User;
 use actix_web::cookie::{Cookie, SameSite};
@@ -293,7 +292,7 @@ pub async fn refresh(svc: web::Data<JwtService>, req: web::Json<RefreshCmd>) -> 
     let cmd = req.into_inner();
     match svc.refresh(cmd).await {
         Ok(result) => HttpResponse::Ok().json(ApiResponse::success(result, "Refresh successful")),
-        Err(_e) => return HttpResponse::InternalServerError().finish(),
+        Err(_e) => HttpResponse::InternalServerError().finish(),
     }
 }
 

@@ -7,7 +7,6 @@ use crate::authn::domain::user::UserService;
 #[cfg(feature = "passkey")]
 use crate::authn::passkey;
 use crate::authn::{auth2::AppState, handlers, passwdless::config, user_id::username2userid};
-use crate::models::User as ActiveUser;
 use actix_web::web::{self, ServiceConfig};
 use actixutils::HS256Signer;
 use actixutils::middleware::ResponseEqualizer;
