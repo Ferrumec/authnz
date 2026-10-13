@@ -51,7 +51,7 @@ impl SessionService {
         user: User,
         params: SessionParams,
     ) -> Result<Uuid, AuthError> {
-        let new = NewSession::new(user, params.ip_address);
+        let new = NewSession{email:user.email,sub:user.sub, username:user.username,expires_at:chrono::Utc::now()+chrono::Duration::hours(1),ip_address:params.ip_address.into()};
         let session = self.store.create(new).await?;
         Ok(session.id)
     }

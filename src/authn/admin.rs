@@ -31,49 +31,7 @@ pub struct UpdateUser {
     pub email_confirmed: Option<bool>,
 }
 
-#[derive(Entity, FromRow, Serialize, Clone, Deserialize)]
-#[entity(table = "sessions", create = "NewSession")]
-pub struct Session {
-    #[entity(skip_create)]
-    pub id: Uuid,
-    #[entity(sortable)]
-    #[entity(skip_create)]
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub sub: Uuid,
-    pub username: String,
-    pub email: String,
-    pub expires_at: DateTime<Utc>,
-    pub ip_address: IpNetwork,
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-pub struct NewSession {
-    pub sub: Uuid,
-    pub username: String,
-    pub email: String,
-    pub expires_at: DateTime<Utc>,
-    pub ip_address: IpNetwork,
-}
-
-impl NewSession {
-    pub fn new(value: ActiveUser, ip_address: IpAddr) -> Self {
-        let ActiveUser {
-            sub,
-            username,
-            email,
-            expires_at,
-        } = value;
-        Self {
-            sub,
-            username,
-            email,
-            expires_at,
-            ip_address: ip_address.into(),
-        }
-    }
-}
-
-pub type SessionRepo = DefaultRepo<Session>;
+pub use viewset::web::{SessionRepo,Session,NewSession};
 
 pub struct SessionService {
     repo: Arc<SessionRepo>,
