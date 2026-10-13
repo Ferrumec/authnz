@@ -145,11 +145,11 @@ pub async fn change_password(
     svc: web::Data<UserService>,
     sess: web::Data<SessionService>,
     jwt: web::Data<JwtService>,
-    user_session: Session<User>,
+    user_session: web::ReqData<super::Identity>,
     req: web::Json<ChangePasswordRequest>,
     params: SessionParams,
 ) -> impl Responder {
-    let user_id = user_session.read().await.sub;
+    let user_id = user_session.sub;
     let cmd = ChangePasswordCmd {
         user_id,
         current_password: req.current_password.clone(),
@@ -258,8 +258,7 @@ pub async fn confirm_password_reset(
 /// Protected route: validates the JWT from the middleware and echoes the
 /// user ID back. Kept on `AppState` so the existing `actixutils::Access`
 /// extractor + `libsigners` validator continue to work unchanged.
-pub async fn protected(sess: Session<User>) -> impl Responder {
-    let id = sess.read().await;
+pub async fn protected(id: web::ReqData<super::Identity>,) -> impl Responder {
     HttpResponse::Ok().json(ApiResponse::success(
         crate::authn::models::ProtectedResponse {
             user_id: id.sub,
@@ -269,8 +268,8 @@ pub async fn protected(sess: Session<User>) -> impl Responder {
     ))
 }
 
-pub async fn jwt(sess: Session<User>, jwt_svc: web::Data<JwtService>) -> impl Responder {
-    let user = sess.read().await;
+pub async fn jwt(user: web::ReqData<super::Identity>, jwt_svc: web::Data<JwtService>) -> impl Responder {
+    
     let result = match jwt_svc.issue_token_pair(user.sub, "session").await {
         Ok(result) => result,
         Err(_e) => return HttpResponse::InternalServerError().finish(),
@@ -304,12 +303,12 @@ use viewset::Repository;
 
 pub async fn get_sessions(
     repo: web::Data<Arc<SessionRepo>>,
-    session: Session<User>,
+    session: web::ReqData<super::Identity>,
 ) -> impl Responder {
     // Return a flat JSON array of session objects (each with an `id` field).
     // The generic viewset list path can return a paginated envelope that
     // clients cannot index as `sessions[0]["id"]`.
-    let sub = session.read().await.sub;
+    let sub = session.sub;
     match repo.list(filters!(sub)).await {
         Ok((sessions, _count)) => HttpResponse::Ok().json(sessions),
         Err(e) => {
@@ -322,12 +321,12 @@ pub async fn get_sessions(
 pub async fn delete_session(
     repo: web::Data<Arc<SessionRepo>>,
     id: web::Path<Uuid>,
-    sess: Session<User>,
+    sess: web::ReqData<super::Identity>,
 ) -> impl Responder {
     let id = id.into_inner();
     let session = match repo.retrieve(&id).await {
         Ok(r) => r,
-        Err(viewset::ApiError::NotFound) => {
+        Err(sqlx::Error::RowNotFound) => {
             return HttpResponse::NotFound().finish();
         }
         Err(e) => {
@@ -335,11 +334,11 @@ pub async fn delete_session(
             return HttpResponse::InternalServerError().finish();
         }
     };
-    if session.sub != sess.read().await.sub {
+    if session.sub != sess.sub {
         return HttpResponse::Forbidden().finish();
     }
     match repo.delete(&id).await {
-        Ok(_) | Err(viewset::ApiError::NotFound) => HttpResponse::Ok().finish(),
+        Ok(_) | Err(sqlx::Error::RowNotFound) => HttpResponse::Ok().finish(),
         Err(e) => {
             tracing::error!("error in deleting session: {e}");
             HttpResponse::InternalServerError().finish()

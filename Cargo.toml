@@ -20,8 +20,8 @@ actixutils = { version = "0.8", features = ["jwt"] }
 webauthn-rs = { version = "0.5.4", optional = true, features = ["danger-allow-state-serialisation"] }
 tracing = "0.1.44"
 async-trait = "0.1.89"
-viewset = "0.5"
-ferrumec = { version = "0.4", }
+viewset = { path = "../viewset", features = ["web"] }
+ferrumec = { version = "0.4.1", features = ["local", "web"] }
 zxcvbn = "3.1.1"
 validator = { version = "0.20.0", features = ["derive"] }
 tokio = { version = "1.53.1", features = ["sync"] }

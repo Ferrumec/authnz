@@ -1061,9 +1061,9 @@ dependencies = [
 
 [[package]]
 name = "ferrumec"
-version = "0.4.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2fb1315c94ac1727de81c1323008efaa8cc7f3d88a9319794ee1d038116db11"
+checksum = "5ab74f887885e726be7d39cf262473e2a1f8c56a3d952be209c341d6705388b6"
 dependencies = [
  "actix-web",
  "async-trait",
@@ -1078,7 +1078,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-actix-web",
- "tracing-opentelemetry",
  "tracing-subscriber",
  "uuid",
 ]
@@ -1910,19 +1909,6 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
-]
-
-[[package]]
-name = "opentelemetry"
-version = "0.33.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6cdb0b1b267eb9db3331b434ed9ddab10d50e280a9adf9d13e5233e2002b61b5"
-dependencies = [
- "futures-core",
- "futures-sink",
- "js-sys",
- "pin-project-lite",
- "thiserror 2.0.21",
 ]
 
 [[package]]
@@ -3073,22 +3059,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tracing-opentelemetry"
-version = "0.34.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a904802a1b902f43638b677ff2a650847e3b4404101b6c586d648e8c1e3e8fe"
-dependencies = [
- "js-sys",
- "opentelemetry",
- "smallvec",
- "tracing",
- "tracing-core",
- "tracing-log",
- "tracing-subscriber",
- "web-time",
-]
-
-[[package]]
 name = "tracing-subscriber"
 version = "0.3.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3237,17 +3207,14 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "viewset"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b404fff18d4fd16e6a18fae75665bfb7ca7089e096b539037bb448f3826ed06c"
+version = "0.6.0"
 dependencies = [
  "actix-web",
- "actixutils",
  "async-trait",
  "chrono",
  "ferrumec",
- "moka",
- "rust_decimal",
+ "futures-util",
+ "ipnetwork",
  "serde",
  "serde_json",
  "sqlx",
@@ -3259,9 +3226,9 @@ dependencies = [
 
 [[package]]
 name = "viewset-macros"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b7503c2519893f103f8867d59775d3aa1f5ff0d737bb7fb225ec31fad4583d8"
+checksum = "21c1fe410348a86a615ac807bb145a70c9b7aa469a62668559ab33f49ce6c6bc"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3292,7 +3259,6 @@ dependencies = [
  "cfg-if",
  "once_cell",
  "rustversion",
- "serde",
  "wasm-bindgen-macro",
  "wasm-bindgen-shared",
 ]
@@ -3334,16 +3300,6 @@ name = "web-sys"
 version = "0.3.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a6430a72df5eb332242960fe84b3002a241163998241eb596d4f739b9757061d"
-dependencies = [
- "js-sys",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "web-time"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a6580f308b1fad9207618087a65c04e7a10bc77e02c8e84e9b00dd4b12fa0bb"
 dependencies = [
  "js-sys",
  "wasm-bindgen",

@@ -68,7 +68,7 @@ impl SessionService {
             }
         };
         match self.store.delete(&session_id).await {
-            Ok(_) | Err(ApiError::NotFound) => Ok(()),
+            Ok(_) | Err(sqlx::Error::RowNotFound) => Ok(()),
             Err(e) => {
                 tracing::error!("failed to delete session: {e}");
                 Err(AuthError::Cache)

@@ -20,6 +20,7 @@ use viewset::ViewSet;
 #[derive(Clone)]
 pub struct AuthModule {
     state: web::Data<AppState>,
+    middleware: Arc<SessionMiddleware>,
     session_store: Arc<SessionRepo>,
     jwt: web::Data<JwtService>,
     user_service: web::Data<UserService>,
@@ -37,15 +38,17 @@ impl Module for AuthModule {
         let cache_factory = infra.cache_factory();
         let session_store = Arc::new(SessionRepo::new(pool.clone(), cache_factory.clone()));
         let user_repo = Arc::new(UserRepository::new(pool.clone(), cache_factory.clone()));
-        let app_state = AppState::new(pool.clone(), user_repo.clone(), cache_factory).await;
+        let app_state = AppState::new(pool.clone(), user_repo.clone(), cache_factory.clone()).await;
         let user_service = web::Data::new(UserService::new(pool.clone(), user_repo.clone()));
         let secret = std::env::var("signer.secret").expect("signer.secret not set");
         let aud = std::env::var("signer.aud").expect("signer.aud not set");
         let signer: Arc<dyn Sign<Identity>> = Arc::new(HS256Signer::new(aud, secret));
         let jwt = web::Data::new(JwtService::new(pool.clone(), signer, user_repo.clone()));
         let user_viewset = create_viewset(user_repo);
+        let middleware = Arc::new(SessionMiddleware::new(cache_factory));
         Ok(Self {
             state: web::Data::new(app_state),
+            middleware,
             session_store,
             jwt,
             user_service,
@@ -53,8 +56,6 @@ impl Module for AuthModule {
         })
     }
     fn configure(self: Arc<Self>, cfg: &mut ServiceConfig, namespace: &str) {
-        let session_middleware: SessionMiddleware<ActiveUser> =
-            SessionMiddleware::new(self.session_store.clone());
         #[cfg_attr(not(feature = "passkey"), allow(unused_mut))]
         let mut scope = web::scope(namespace)
             // `username2userid` and the `/passwordless` handlers extract
@@ -89,7 +90,7 @@ impl Module for AuthModule {
             .service(
                 web::scope("/me")
                     //.app_data(self.session_store.clone())
-                    .wrap(session_middleware)
+                    .wrap(self.middleware.clone())
                     .route("/jwt", web::post().to(handlers::jwt))
                     .route("/logout", web::post().to(handlers::logout))
                     .route("/account", web::get().to(handlers::protected))

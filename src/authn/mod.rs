@@ -2,7 +2,6 @@ mod auth2;
 mod config;
 mod domain;
 mod handlers;
-mod middleware;
 mod models;
 #[cfg(feature = "passkey")]
 mod passkey;
@@ -13,4 +12,4 @@ pub use config::AuthModule as Module;
 mod admin;
 pub use admin::{Session, SessionRepo, User};
 pub use domain::SessionService;
-pub use middleware::{Identify, Identity, IdentityResult, SessionMiddleware};
+pub use viewset::web::{Identity, SessionMiddleware};
