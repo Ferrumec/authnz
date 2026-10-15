@@ -1,5 +1,6 @@
 use super::SessionMiddleware;
 use crate::SessionRepo;
+use crate::SessionService;
 use crate::authn::admin::admin_session_viewset;
 use crate::authn::admin::{UserRepository, UserViewSet, create_viewset};
 use crate::authn::domain::JwtService;
@@ -22,6 +23,7 @@ pub struct AuthModule {
     middleware: Arc<SessionMiddleware>,
     session_store: Arc<SessionRepo>,
     jwt: web::Data<JwtService>,
+    session_service: web::Data<SessionService>,
     user_service: web::Data<UserService>,
     user_viewset: Arc<UserViewSet>,
 }
@@ -36,6 +38,8 @@ impl Module for AuthModule {
         let pool = infra.database();
         let cache_factory = infra.cache_factory();
         let session_store = Arc::new(SessionRepo::new(pool.clone(), cache_factory.clone()));
+        let session_service = web::Data::new(SessionService::new((*session_store).clone()));
+
         let user_repo = Arc::new(UserRepository::new(pool.clone(), cache_factory.clone()));
         let app_state = AppState::new(pool.clone(), user_repo.clone(), cache_factory.clone()).await;
         let user_service = web::Data::new(UserService::new(pool.clone(), user_repo.clone()));
@@ -49,6 +53,7 @@ impl Module for AuthModule {
             state: web::Data::new(app_state),
             middleware,
             session_store,
+            session_service,
             jwt,
             user_service,
             user_viewset,
@@ -63,6 +68,7 @@ impl Module for AuthModule {
             .app_data(self.state.clone())
             .app_data(self.jwt.clone())
             .app_data(self.user_service.clone())
+            .app_data(self.session_service.clone())
             .app_data(web::Data::new(self.session_store.clone()))
             .service(username2userid)
             .service(

@@ -257,7 +257,7 @@ pub async fn confirm_password_reset(
 /// Protected route: validates the JWT from the middleware and echoes the
 /// user ID back. Kept on `AppState` so the existing `actixutils::Access`
 /// extractor + `libsigners` validator continue to work unchanged.
-pub async fn protected(id: web::ReqData<super::Identity>,) -> impl Responder {
+pub async fn protected(id: web::ReqData<super::Identity>) -> impl Responder {
     HttpResponse::Ok().json(ApiResponse::success(
         crate::authn::models::ProtectedResponse {
             user_id: id.sub,
@@ -267,8 +267,10 @@ pub async fn protected(id: web::ReqData<super::Identity>,) -> impl Responder {
     ))
 }
 
-pub async fn jwt(user: web::ReqData<super::Identity>, jwt_svc: web::Data<JwtService>) -> impl Responder {
-    
+pub async fn jwt(
+    user: web::ReqData<super::Identity>,
+    jwt_svc: web::Data<JwtService>,
+) -> impl Responder {
     let result = match jwt_svc.issue_token_pair(user.sub, "session").await {
         Ok(result) => result,
         Err(_e) => return HttpResponse::InternalServerError().finish(),

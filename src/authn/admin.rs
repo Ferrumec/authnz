@@ -29,7 +29,7 @@ pub struct UpdateUser {
     pub email_confirmed: Option<bool>,
 }
 
-pub use viewset::web::{SessionRepo,Session,NewSession};
+pub use viewset::web::{NewSession, Session, SessionRepo};
 
 pub struct SessionService {
     repo: Arc<SessionRepo>,
