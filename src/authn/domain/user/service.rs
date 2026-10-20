@@ -15,7 +15,7 @@ use crate::authn::domain::user::{
 
 use crate::authn::admin::{User, UserRepository};
 use chrono::Utc;
-use ferrumec::event::EventType;
+use ferrumec::event::{Event, EventType, Outbox};
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres};
 use std::sync::Arc;
@@ -59,6 +59,7 @@ impl EventType for PasswordResetRequested {
 pub struct UserService {
     pool: Pool<Postgres>,
     pub(crate) repo: Arc<UserRepository>,
+    outbox: Arc<Outbox>,
 }
 
 impl UserService {
@@ -66,8 +67,8 @@ impl UserService {
     /// so its cache can be shared with other consumers (the `/admin/users`
     /// viewset and [`crate::authn::domain::JwtService`]). See
     /// [`crate::authn::config::AuthModule::new`].
-    pub fn new(pool: Pool<Postgres>, repo: Arc<UserRepository>) -> Self {
-        Self { pool, repo }
+    pub fn new(pool: Pool<Postgres>, repo: Arc<UserRepository>, outbox: Arc<Outbox>) -> Self {
+        Self { pool, repo, outbox }
     }
 
     // ── Password login ────────────────────────────────────────────────────────
@@ -160,18 +161,18 @@ impl UserService {
 
     /// Generate and store a reset token. Always returns `Ok` even if the
     /// user is not found (prevents email enumeration) — in that case
-    /// `Ok(None)` is returned. Database and other internal errors are
-    /// returned so the caller can log them without leaking details to
-    /// the client.
+    /// `Ok(())` is returned with no event. Database and other internal
+    /// errors are returned so the caller can log them without leaking
+    /// details to the client.
     ///
-    /// The raw token is never logged: it comes back to the caller as a
-    /// [`PasswordResetRequested`] event, which the HTTP handler hands to
-    /// the event bus (`typed_eventbus` via `actixutils::locals::Context`)
-    /// for delivery — e.g. to an email service — instead.
+    /// The raw token is never logged: it is published as a
+    /// [`PasswordResetRequested`] event through the transactional
+    /// [`Outbox`] so subscribers (e.g. an email service) receive it if and
+    /// only if the insert commits.
     pub async fn request_password_reset(
         &self,
         cmd: RequestPasswordResetCmd,
-    ) -> Result<Option<PasswordResetRequested>, AuthError> {
+    ) -> Result<(), AuthError> {
         // Look up by email column in the `users` table.
         let user_id: Option<Uuid> =
             sqlx::query_scalar!("SELECT id FROM users WHERE email = $1", cmd.email)
@@ -181,12 +182,14 @@ impl UserService {
 
         let user_id = match user_id {
             Some(id) => id,
-            None => return Ok(None), // silent – do not leak whether address is registered
+            None => return Ok(()), // silent – do not leak whether address is registered
         };
 
         let raw = generate_raw_token();
         let hash = hash_token(&raw);
         let expires_at = Utc::now() + chrono::Duration::minutes(30);
+
+        let mut tx = self.pool.begin().await.map_err(AuthError::Database)?;
 
         sqlx::query!(
             "INSERT INTO password_resets (user_id, token_hash, expires_at) VALUES ($1, $2, $3)",
@@ -194,14 +197,24 @@ impl UserService {
             hash,
             expires_at
         )
-        .execute(&self.pool)
+        .execute(&mut *tx)
         .await
         .map_err(AuthError::Database)?;
 
-        Ok(Some(PasswordResetRequested {
+        let event = Event::new(PasswordResetRequested {
             email: cmd.email,
             token: raw,
-        }))
+        });
+        self.outbox
+            .push(&event, &mut tx)
+            .await
+            .map_err(|e| {
+                tracing::error!("outbox push failed for password-reset: {e}");
+                AuthError::Database(sqlx::Error::Protocol(e.to_string()))
+            })?;
+
+        tx.commit().await.map_err(AuthError::Database)?;
+        Ok(())
     }
 
     // ── Password reset (confirm) ──────────────────────────────────────────────

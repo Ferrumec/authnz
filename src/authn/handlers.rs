@@ -16,8 +16,7 @@ use crate::authn::session::SessionParams;
 use crate::models::User;
 use actix_web::cookie::{Cookie, SameSite};
 use actix_web::{HttpRequest, HttpResponse, Responder, web};
-use actixutils::{filters, locals::Context};
-use ferrumec::event::Event;
+use actixutils::filters;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -190,32 +189,18 @@ pub async fn change_password(
 pub async fn request_password_reset(
     svc: web::Data<UserService>,
     req: web::Json<PasswordResetRequest>,
-    // Optional: event-bus middleware may not be wired in every deployment /
-    // test harness. The handler must still always return 200 so callers
-    // cannot enumerate accounts.
-    ctx: Option<web::ReqData<Context>>,
 ) -> impl Responder {
     // Always return 200 regardless of whether the email was found.
     // Errors (DB, etc.) are logged inside the service but never leaked to the client.
-    match svc
+    // The service publishes PasswordResetRequested through the transactional Outbox
+    // when a token is issued.
+    if let Err(e) = svc
         .request_password_reset(RequestPasswordResetCmd {
             email: req.email.clone(),
         })
         .await
     {
-        Ok(Some(event)) => {
-            // Hand the raw token off to the event bus (e.g. an email
-            // service subscriber) instead of logging it.
-            if let Some(ctx) = ctx {
-                ctx.publish(Event::new(event)).await;
-            } else {
-                tracing::debug!(
-                    "password-reset token issued but no event-bus Context is available to publish it"
-                );
-            }
-        }
-        Ok(None) => {} // no account for that address – stay silent
-        Err(e) => tracing::error!("password-reset request failed: {e}"),
+        tracing::error!("password-reset request failed: {e}");
     }
     HttpResponse::Ok().json(ApiResponse::success(
         (),

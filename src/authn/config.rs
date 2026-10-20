@@ -37,12 +37,18 @@ impl Module for AuthModule {
         // entity across its handlers and admin viewsets.
         let pool = infra.database();
         let cache_factory = infra.cache_factory();
+        let outbox = Arc::new(
+            ferrumec::event::Outbox::new(pool.clone(), infra.event_stream()).await?,
+        );
         let session_store = Arc::new(SessionRepo::new(pool.clone(), cache_factory.clone()));
         let session_service = web::Data::new(SessionService::new((*session_store).clone()));
 
         let user_repo = Arc::new(UserRepository::new(pool.clone(), cache_factory.clone()));
-        let app_state = AppState::new(pool.clone(), user_repo.clone(), cache_factory.clone()).await;
-        let user_service = web::Data::new(UserService::new(pool.clone(), user_repo.clone()));
+        let app_state =
+            AppState::new(pool.clone(), user_repo.clone(), outbox.clone(), cache_factory.clone())
+                .await;
+        let user_service =
+            web::Data::new(UserService::new(pool.clone(), user_repo.clone(), outbox));
         let secret = std::env::var("signer.secret").expect("signer.secret not set");
         let aud = std::env::var("signer.aud").expect("signer.aud not set");
         let signer: Arc<dyn Sign<Identity>> = Arc::new(HS256Signer::new(aud, secret));

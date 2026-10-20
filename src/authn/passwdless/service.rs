@@ -1,8 +1,9 @@
 use crate::authn::{auth2::random_token, domain::user::UserService};
-use ferrumec::event::EventType;
+use ferrumec::event::{Event, EventType, Outbox};
 use moka::future::Cache;
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use std::time::Duration;
 use uuid::Uuid;
 
@@ -48,6 +49,8 @@ impl Caches {
 pub struct PasswdlessService {
     pub auth_service: UserService,
     pub caches: Caches,
+    outbox: Arc<Outbox>,
+    pool: sqlx::Pool<sqlx::Postgres>,
 }
 
 fn random_otp() -> u32 {
@@ -71,10 +74,16 @@ async fn release_pair(email: Uuid, caches: &Caches) -> ChallengeRequested {
 }
 
 impl PasswdlessService {
-    pub fn new(auth_service: UserService) -> Self {
+    pub fn new(
+        auth_service: UserService,
+        outbox: Arc<Outbox>,
+        pool: sqlx::Pool<sqlx::Postgres>,
+    ) -> Self {
         Self {
             auth_service,
             caches: Caches::new(),
+            outbox,
+            pool,
         }
     }
 
@@ -103,31 +112,38 @@ impl PasswdlessService {
         Ok(fa2.email)
     }
 
-    pub async fn challenge_by_email(
-        &self,
-        email: &str,
-    ) -> Result<ChallengeRequested, PasswdlessError> {
+    async fn publish_challenge(&self, payload: ChallengeRequested) -> Result<(), PasswdlessError> {
+        let mut tx = self.pool.begin().await?;
+        let event = Event::new(payload);
+        self.outbox
+            .push(&event, &mut tx)
+            .await
+            .map_err(|e| {
+                tracing::error!("outbox push failed for passwordless challenge: {e}");
+                PasswdlessError::DbError
+            })?;
+        tx.commit().await?;
+        Ok(())
+    }
+
+    pub async fn challenge_by_email(&self, email: &str) -> Result<(), PasswdlessError> {
         let user = match self.auth_service.get_user_by_email(email).await {
             Ok(r) => r,
             Err(_) => return Err(PasswdlessError::UserNotFound),
         };
 
         let payload = release_pair(user.id, &self.caches).await;
-
-        Ok(payload)
+        self.publish_challenge(payload).await
     }
-    pub async fn challenge_by_username(
-        &self,
-        email: &str,
-    ) -> Result<ChallengeRequested, PasswdlessError> {
+
+    pub async fn challenge_by_username(&self, email: &str) -> Result<(), PasswdlessError> {
         let user = match self.auth_service.get_user_by_username(email).await {
             Ok(r) => r,
             Err(_) => return Err(PasswdlessError::UserNotFound),
         };
 
         let payload = release_pair(user.id, &self.caches).await;
-
-        Ok(payload)
+        self.publish_challenge(payload).await
     }
 }
 

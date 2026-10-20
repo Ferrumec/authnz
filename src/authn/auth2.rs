@@ -2,6 +2,7 @@ use crate::authn::admin::UserRepository;
 use crate::authn::domain::user::{UserService, token::generate_raw_token};
 use crate::authn::passwdless::PasswdlessService;
 use ferrumec::cache::CacheFactory;
+use ferrumec::event::Outbox;
 use sqlx::Pool;
 use std::sync::Arc;
 #[cfg(feature = "passkey")]
@@ -21,10 +22,11 @@ impl AppState {
     pub async fn new(
         pool: Pool<sqlx::Postgres>,
         user_repo: Arc<UserRepository>,
+        outbox: Arc<Outbox>,
         #[cfg_attr(not(feature = "passkey"), allow(unused_variables))] cache_factory: impl CacheFactory,
     ) -> Self {
-        let user_service = UserService::new(pool.clone(), user_repo);
-        let passwdless_service = PasswdlessService::new(user_service.clone());
+        let user_service = UserService::new(pool.clone(), user_repo, outbox.clone());
+        let passwdless_service = PasswdlessService::new(user_service.clone(), outbox, pool.clone());
 
         Self {
             pool,

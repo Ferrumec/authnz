@@ -9,8 +9,6 @@ use actix_web::{
     HttpResponse, Responder, ResponseError, get, post,
     web::{self, ServiceConfig},
 };
-use actixutils::locals::Context;
-use ferrumec::event::Event;
 use serde::Deserialize;
 use std::fmt::Display;
 
@@ -55,52 +53,25 @@ struct Email {
 }
 
 #[post("/challenge/email")]
-async fn challenge1(
-    data: web::Data<AppState>,
-    email: web::Json<Email>,
-    // Optional: event-bus middleware may not be present in every deployment.
-    ctx: Option<web::ReqData<Context>>,
-) -> impl Responder {
+async fn challenge1(data: web::Data<AppState>, email: web::Json<Email>) -> impl Responder {
     match data
         .passwdless_service
         .challenge_by_email(&email.email)
         .await
     {
-        Ok(r) => {
-            if let Some(ctx) = ctx {
-                ctx.publish(Event::new(r)).await;
-            } else {
-                tracing::debug!(
-                    "passwordless challenge issued but no event-bus Context is available to publish it"
-                );
-            }
-            HttpResponse::Created().finish()
-        }
+        Ok(()) => HttpResponse::Created().finish(),
         Err(e) => translate_error(e),
     }
 }
 
 #[get("/challenge/username/{username}")]
-async fn challenge2(
-    data: web::Data<AppState>,
-    username: web::Path<String>,
-    ctx: Option<web::ReqData<Context>>,
-) -> impl Responder {
+async fn challenge2(data: web::Data<AppState>, username: web::Path<String>) -> impl Responder {
     match data
         .passwdless_service
         .challenge_by_username(&username.into_inner())
         .await
     {
-        Ok(r) => {
-            if let Some(ctx) = ctx {
-                ctx.publish(Event::new(r)).await;
-            } else {
-                tracing::debug!(
-                    "passwordless challenge issued but no event-bus Context is available to publish it"
-                );
-            }
-            HttpResponse::Created().finish()
-        }
+        Ok(()) => HttpResponse::Created().finish(),
         Err(e) => translate_error(e),
     }
 }
