@@ -1,10 +1,10 @@
 use crate::authn::domain::user::UserService;
 use crate::authn::passkey::repository::CredsRepo;
-use crate::authn::session::Session;
 use crate::authn::{
     auth2::AppState,
     passkey::{error::ErrorResponse, models::LabelQuery},
 };
+use viewset::web::Identity;
 use crate::models::User;
 use actix_web::{HttpResponse, web};
 use uuid::Uuid;
@@ -15,11 +15,11 @@ use webauthn_rs::prelude::RegisterPublicKeyCredential;
 /// one, so ownership of the account is proven up front the normal way.
 pub async fn start(
     state: web::Data<AppState>,
-    session: Session<User>,
+    session: Identity,
     repo: web::Data<CredsRepo>,
     auth_service: web::Data<UserService>,
 ) -> HttpResponse {
-    let user_id = session.read().await.sub;
+    let user_id = session.sub;
 
     let user = match auth_service.get_user_by_id(&user_id).await {
         Ok(u) => u,
@@ -67,12 +67,12 @@ pub async fn start(
 /// Optional `?label=` query param to name the device.
 pub async fn finish(
     state: web::Data<AppState>,
-    session: Session<User>,
+    session: Identity,
     repo: web::Data<CredsRepo>,
     query: web::Query<LabelQuery>,
     credential: web::Json<RegisterPublicKeyCredential>,
 ) -> HttpResponse {
-    let user_id = session.read().await.sub;
+    let user_id = session.sub;
 
     let reg_state = match state.passkey.take_reg_state(&user_id).await {
         Some(s) => s,
@@ -114,10 +114,10 @@ pub async fn finish(
 /// (metadata only) for an account-settings "manage your passkeys" view.
 pub async fn list(
     _state: web::Data<AppState>,
-    session: Session<User>,
+    session: Identity,
     repo: web::Data<CredsRepo>,
 ) -> HttpResponse {
-    match repo.list_for_user(session.read().await.sub).await {
+    match repo.list_for_user(session.sub).await {
         Ok(list) => HttpResponse::Ok().json(list),
         Err(e) => {
             tracing::warn!("passkey list: {e}");
@@ -130,12 +130,12 @@ pub async fn list(
 /// user's passkeys by its row id (from the list endpoint).
 pub async fn remove(
     _state: web::Data<AppState>,
-    session: Session<User>,
+    session: Identity,
     row_id: web::Path<Uuid>,
     repo: web::Data<CredsRepo>,
 ) -> HttpResponse {
     match repo
-        .delete_credential(session.read().await.sub, row_id.into_inner())
+        .delete_credential(session.sub, row_id.into_inner())
         .await
     {
         Ok(true) => HttpResponse::Ok().json(serde_json::json!({ "status": "success" })),
