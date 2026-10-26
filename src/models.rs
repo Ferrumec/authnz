@@ -1,4 +1,4 @@
-use crate::authn::User as CoreUser;
+use crate::authn::UserResponse;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -12,7 +12,10 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(user: CoreUser) -> Self {
+    /// Accepts either a full `User` entity (credential lookups) or the
+    /// `UserResponse` returned by repository reads.
+    pub fn new(user: impl Into<UserResponse>) -> Self {
+        let user = user.into();
         Self {
             username: user.username,
             email: user.email,

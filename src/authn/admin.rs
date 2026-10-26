@@ -6,7 +6,7 @@ use uuid::Uuid;
 use viewset::{ApiError, DefaultRepo, DefaultViewSet, Entity, Service};
 
 #[derive(Entity, FromRow, Clone, Serialize, Deserialize)]
-#[entity(update = "UpdateUser")]
+#[entity(update = "UpdateUser", response = "UserResponse")]
 pub struct User {
     #[entity(skip_update)]
     pub id: Uuid,
@@ -21,6 +21,31 @@ pub struct User {
     #[entity(skip_update)]
     pub updated_at: DateTime<Utc>,
     pub email_confirmed: bool,
+}
+
+/// Client-facing shape of a [`User`]. Everything the repository reads
+/// returns this, so `password_hash` can never reach a response body.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct UserResponse {
+    pub id: Uuid,
+    pub username: String,
+    pub email: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub email_confirmed: bool,
+}
+
+impl From<User> for UserResponse {
+    fn from(u: User) -> Self {
+        Self {
+            id: u.id,
+            username: u.username,
+            email: u.email,
+            created_at: u.created_at,
+            updated_at: u.updated_at,
+            email_confirmed: u.email_confirmed,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize)]

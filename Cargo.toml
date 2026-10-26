@@ -20,14 +20,14 @@ actixutils = { version = "0.8", features = ["jwt"] }
 webauthn-rs = { version = "0.5.4", optional = true, features = ["danger-allow-state-serialisation"] }
 tracing = "0.1.44"
 async-trait = "0.1.89"
-viewset = { version = "0.6.4", features = ["web"] }
+viewset = { git = "https://github.com/Ferrumec/viewset", features = ["web"] }
 ferrumec = { version = "0.4", features = ["local","pg", "web"] }
 zxcvbn = "3.1.1"
 validator = { version = "0.20.0", features = ["derive"] }
-tokio = { version = "1.53.1", features = ["sync"] }
-futures-util = "0.3.34"
+#tokio = { version = "1.53.1", features = ["sync"] }
+#futures-util = "0.3.34"
 ipnet = "2.12.1"
-ipnetwork = { version = "0.21.1", features = ["serde"] }
+#ipnetwork = { version = "0.21.1", features = ["serde"] }
 
 [features]
 passkey = ["webauthn-rs"]

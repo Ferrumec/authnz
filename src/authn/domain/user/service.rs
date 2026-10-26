@@ -13,7 +13,7 @@ use crate::authn::domain::user::{
     },
 };
 
-use crate::authn::admin::{User, UserRepository};
+use crate::authn::admin::{User, UserRepository, UserResponse};
 use chrono::Utc;
 use ferrumec::event::{Event, EventType, Outbox};
 use serde::{Deserialize, Serialize};
@@ -138,9 +138,11 @@ impl UserService {
             return Err(AuthError::PasswordTooShort);
         }
 
-        let user = self.get_user_by_id(&cmd.user_id).await?;
+        // Needs the stored hash, which `ResponseDto` deliberately omits, so
+        // this bypasses the repository's read path.
+        let password_hash = self.password_hash_for(&cmd.user_id).await?;
 
-        let valid = bcrypt::verify(&cmd.current_password, &user.password_hash).unwrap_or(false);
+        let valid = bcrypt::verify(&cmd.current_password, &password_hash).unwrap_or(false);
         if !valid {
             return Err(AuthError::InvalidCredentials);
         }
@@ -328,11 +330,23 @@ impl UserService {
         }
     }
 
-    pub async fn get_user_by_id(&self, id: &Uuid) -> Result<User, AuthError> {
+    /// Public-facing lookup: returns the `ResponseDto` (no `password_hash`).
+    pub async fn get_user_by_id(&self, id: &Uuid) -> Result<UserResponse, AuthError> {
         self.repo
             .retrieve(id)
             .await
             .map_err(|_| AuthError::UserNotFound)
+    }
+
+    /// Credential lookup for password verification only. Runtime-checked
+    /// query so no new `sqlx::query!` offline metadata is required.
+    async fn password_hash_for(&self, id: &Uuid) -> Result<String, AuthError> {
+        sqlx::query_scalar::<_, String>("SELECT password_hash FROM users WHERE id = $1")
+            .bind(id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(AuthError::Database)?
+            .ok_or(AuthError::UserNotFound)
     }
 
     async fn create_user(

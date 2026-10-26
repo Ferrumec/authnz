@@ -10,6 +10,6 @@ pub mod session;
 mod user_id;
 pub use config::AuthModule as Module;
 mod admin;
-pub use admin::{Session, SessionRepo, User};
+pub use admin::{Session, SessionRepo, User, UserResponse};
 pub use domain::SessionService;
 pub use viewset::web::{Identity, SessionMiddleware};
