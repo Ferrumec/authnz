@@ -5,7 +5,6 @@ use crate::authn::{
     passkey::{error::ErrorResponse, models::LabelQuery},
 };
 use viewset::web::Identity;
-use crate::models::User;
 use actix_web::{HttpResponse, web};
 use uuid::Uuid;
 use webauthn_rs::prelude::RegisterPublicKeyCredential;

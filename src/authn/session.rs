@@ -5,16 +5,11 @@
 //! [`SessionMiddleware`](crate::middleware::SessionMiddleware) has populated
 //! it into the request extensions.
 
-use actix_web::{Error, FromRequest, HttpMessage, HttpRequest, dev::Payload, error};
+use actix_web::{Error, FromRequest, HttpRequest, dev::Payload};
 use std::{
     future::{Ready, ready},
     net::{IpAddr, Ipv4Addr},
-    sync::{
-        Arc,
-        atomic::{AtomicBool, Ordering},
-    },
 };
-use tokio::sync::RwLock;
 
 
 pub struct SessionParams {

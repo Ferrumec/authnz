@@ -10,7 +10,7 @@ use crate::authn::admin::UserRepository;
 use crate::authn::domain::user::token::{generate_raw_token, hash_token};
 use actixutils::{Identity, Sign};
 use chrono::Utc;
-use sqlx::{Executor, Pool, Postgres};
+use sqlx::{ Pool, Postgres};
 use std::sync::Arc;
 use uuid::Uuid;
 use viewset::Repository;
@@ -114,16 +114,7 @@ impl JwtService {
             Err(e) => Err(e),
         }
     }
-
-    // ── Passwordless – issue tokens after challenge confirmation ──────────────
-
-    /// Issue a token pair for a user who just completed a passwordless
-    /// challenge (link or OTP). The caller is responsible for verifying the
-    /// challenge beforehand.
-    pub async fn issue_for_passwordless(&self, user_id: Uuid) -> Result<JwtResult, AuthError> {
-        self.issue_token_pair(user_id, "passwordless").await
-    }
-
+    
     // ── Private helpers ───────────────────────────────────────────────────────
 
     /// Issue a fresh access token + refresh token pair.
