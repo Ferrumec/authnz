@@ -246,7 +246,8 @@ pub async fn protected(id: web::ReqData<super::Identity>) -> impl Responder {
     HttpResponse::Ok().json(ApiResponse::success(
         crate::authn::models::ProtectedResponse {
             user_id: id.sub,
-            message: "Access granted to protected route".to_string(),
+            username: id.username.clone(),
+            email: id.email.clone()
         },
         "Protected data retrieved successfully",
     ))

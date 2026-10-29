@@ -207,13 +207,10 @@ impl UserService {
             email: cmd.email,
             token: raw,
         });
-        self.outbox
-            .push(&event, &mut tx)
-            .await
-            .map_err(|e| {
-                tracing::error!("outbox push failed for password-reset: {e}");
-                AuthError::Database(sqlx::Error::Protocol(e.to_string()))
-            })?;
+        self.outbox.push(&event, &mut tx).await.map_err(|e| {
+            tracing::error!("outbox push failed for password-reset: {e}");
+            AuthError::Database(sqlx::Error::Protocol(e.to_string()))
+        })?;
 
         tx.commit().await.map_err(AuthError::Database)?;
         Ok(())

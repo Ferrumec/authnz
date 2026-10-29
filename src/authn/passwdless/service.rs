@@ -115,13 +115,10 @@ impl PasswdlessService {
     async fn publish_challenge(&self, payload: ChallengeRequested) -> Result<(), PasswdlessError> {
         let mut tx = self.pool.begin().await?;
         let event = Event::new(payload);
-        self.outbox
-            .push(&event, &mut tx)
-            .await
-            .map_err(|e| {
-                tracing::error!("outbox push failed for passwordless challenge: {e}");
-                PasswdlessError::DbError
-            })?;
+        self.outbox.push(&event, &mut tx).await.map_err(|e| {
+            tracing::error!("outbox push failed for passwordless challenge: {e}");
+            PasswdlessError::DbError
+        })?;
         tx.commit().await?;
         Ok(())
     }

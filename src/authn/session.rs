@@ -11,7 +11,6 @@ use std::{
     net::{IpAddr, Ipv4Addr},
 };
 
-
 pub struct SessionParams {
     pub ip_address: IpAddr,
     pub user_agent: String,

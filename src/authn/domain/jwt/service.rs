@@ -10,7 +10,7 @@ use crate::authn::admin::UserRepository;
 use crate::authn::domain::user::token::{generate_raw_token, hash_token};
 use actixutils::{Identity, Sign};
 use chrono::Utc;
-use sqlx::{ Pool, Postgres};
+use sqlx::{Pool, Postgres};
 use std::sync::Arc;
 use uuid::Uuid;
 use viewset::Repository;
@@ -114,7 +114,7 @@ impl JwtService {
             Err(e) => Err(e),
         }
     }
-    
+
     // ── Private helpers ───────────────────────────────────────────────────────
 
     /// Issue a fresh access token + refresh token pair.

@@ -4,9 +4,9 @@ use crate::authn::{
     auth2::AppState,
     passkey::{error::ErrorResponse, models::LabelQuery},
 };
-use viewset::web::Identity;
 use actix_web::{HttpResponse, web};
 use uuid::Uuid;
+use viewset::web::Identity;
 use webauthn_rs::prelude::RegisterPublicKeyCredential;
 /// `POST /passkey/register/start` — begin registering a new passkey for
 /// the *currently authenticated* account (JWT required). The account must

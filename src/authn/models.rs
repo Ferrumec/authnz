@@ -23,7 +23,8 @@ pub struct LoginRequest {
 #[derive(Debug, Serialize)]
 pub struct ProtectedResponse {
     pub user_id: Uuid,
-    pub message: String,
+    pub username: String,
+    pub email: String,
 }
 
 #[derive(Debug, Serialize)]
