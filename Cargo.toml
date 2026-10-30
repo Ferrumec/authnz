@@ -25,6 +25,7 @@ ferrumec = { version = "0.5", features = ["local","pg", "web"] }
 zxcvbn = "3.1.1"
 validator = { version = "0.20.0", features = ["derive"] }
 ipnet = "2.12.1"
+time = "0.3.55"
 
 [features]
 passkey = ["webauthn-rs"]

@@ -46,6 +46,7 @@ pub fn session_cookie(session: &Uuid) -> Cookie<'static> {
         .http_only(true)
         .secure(true)
         .same_site(SameSite::Strict)
+        .max_age(time::Duration::days(30))
         .finish()
 }
 
